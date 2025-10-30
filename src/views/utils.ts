@@ -9,9 +9,13 @@
  */
 export const getLogIcon = (severity: string): string => {
   switch (severity.toLowerCase()) {
-    case 'info': return 'ℹ️';
-    case 'warn': return '⚠️';
-    case 'err': return '❌';
-    default: return '📝'; // Default for unknown severity
+    case "info":
+      return "ℹ️";
+    case "warn":
+      return "⚠️";
+    case "err":
+      return "❌";
+    default:
+      return "📝"; // Default for unknown severity
   }
 };

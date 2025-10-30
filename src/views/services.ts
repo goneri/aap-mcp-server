@@ -1,7 +1,7 @@
-import { AAPMcpToolDefinition } from '../openapi-loader.js';
-import { McpToolLogEntry } from '../extract-tools.js';
-import { getLogIcon } from './utils.js';
-import { renderHeader, getHeaderStyles } from '../header.js';
+import { AAPMcpToolDefinition } from "../openapi-loader.js";
+import { McpToolLogEntry } from "../extract-tools.js";
+import { getLogIcon } from "./utils.js";
+import { renderHeader, getHeaderStyles } from "../header.js";
 
 interface ServiceData {
   name: string;
@@ -142,7 +142,9 @@ export const renderServicesOverview = (data: ServicesOverviewData): string => {
         </div>
 
         <div class="services-grid">
-            ${services.map(service => `
+            ${services
+              .map(
+                (service) => `
             <a href="/services/${service.name}" class="service-card service-${service.name}">
                 <div class="service-header">
                     <div class="service-icon">
@@ -166,7 +168,9 @@ export const renderServicesOverview = (data: ServicesOverviewData): string => {
                     </div>
                 </div>
             </a>
-            `).join('')}
+            `,
+              )
+              .join("")}
         </div>
     </div>
 </body>
@@ -176,24 +180,30 @@ export const renderServicesOverview = (data: ServicesOverviewData): string => {
 export const renderServiceTools = (data: ServiceToolsData): string => {
   const { serviceName, displayName, serviceTools, totalSize, methods } = data;
 
-  const toolRows = serviceTools.map(tool => {
-    // Calculate log counts by severity
-    const logCounts = tool.logs.reduce((counts, log) => {
-      const severity = log.severity.toLowerCase();
-      counts[severity] = (counts[severity] || 0) + 1;
-      return counts;
-    }, {} as Record<string, number>);
+  const toolRows = serviceTools
+    .map((tool) => {
+      // Calculate log counts by severity
+      const logCounts = tool.logs.reduce(
+        (counts, log) => {
+          const severity = log.severity.toLowerCase();
+          counts[severity] = (counts[severity] || 0) + 1;
+          return counts;
+        },
+        {} as Record<string, number>,
+      );
 
-    // Generate log badges
-    const logBadges = Object.entries(logCounts).map(([severity, count]) => {
-      const icon = getLogIcon(severity);
-      return `<a href="/tools/${encodeURIComponent(tool.name)}" class="log-badge ${severity}">
+      // Generate log badges
+      const logBadges = Object.entries(logCounts)
+        .map(([severity, count]) => {
+          const icon = getLogIcon(severity);
+          return `<a href="/tools/${encodeURIComponent(tool.name)}" class="log-badge ${severity}">
         <span class="log-icon ${severity}">${icon}</span>
         ${count}
       </a>`;
-    }).join(' ');
+        })
+        .join(" ");
 
-    return `
+      return `
     <tr>
       <td><a href="/tools/${encodeURIComponent(tool.name)}" style="color: #007acc; text-decoration: none;">${tool.name}</a></td>
       <td>${tool.size}</td>
@@ -201,44 +211,54 @@ export const renderServiceTools = (data: ServiceToolsData): string => {
       <td class="logs-column">${logBadges || '<span class="no-logs">—</span>'}</td>
     </tr>
     `;
-  }).join('');
+    })
+    .join("");
 
   // Group tools by log messages
-  const logGroups: Record<string, { tools: AAPMcpToolDefinition[]; severity: string; icon: string }> = {};
+  const logGroups: Record<
+    string,
+    { tools: AAPMcpToolDefinition[]; severity: string; icon: string }
+  > = {};
 
-  serviceTools.forEach(tool => {
-    tool.logs.forEach(log => {
+  serviceTools.forEach((tool) => {
+    tool.logs.forEach((log) => {
       const key = `${log.severity}:${log.msg}`;
       if (!logGroups[key]) {
         const icon = getLogIcon(log.severity.toLowerCase());
         logGroups[key] = {
           tools: [],
           severity: log.severity,
-          icon: icon
+          icon: icon,
         };
       }
       logGroups[key].tools.push(tool);
     });
   });
 
-  const logsContent = Object.keys(logGroups).length > 0
-    ? Object.entries(logGroups).map(([key, group]) => {
-        const [severity, message] = key.split(':', 2);
-        return `
+  const logsContent =
+    Object.keys(logGroups).length > 0
+      ? Object.entries(logGroups)
+          .map(([key, group]) => {
+            const [severity, message] = key.split(":", 2);
+            return `
         <div class="log-group">
           <div class="log-header">
             <span class="log-icon ${severity.toLowerCase()}">${getLogIcon(severity.toLowerCase())}</span>
             <span class="log-message">${message}</span>
-            <span class="log-count">${group.tools.length} tool${group.tools.length !== 1 ? 's' : ''}</span>
+            <span class="log-count">${group.tools.length} tool${group.tools.length !== 1 ? "s" : ""}</span>
           </div>
           <div class="log-tools">
-            ${group.tools.map(tool =>
-              `<a href="/tools/${encodeURIComponent(tool.name)}" class="tool-link">${tool.name}</a>`
-            ).join('')}
+            ${group.tools
+              .map(
+                (tool) =>
+                  `<a href="/tools/${encodeURIComponent(tool.name)}" class="tool-link">${tool.name}</a>`,
+              )
+              .join("")}
           </div>
         </div>`;
-      }).join('')
-    : '<div class="no-logs">No logs found for tools in this service.</div>';
+          })
+          .join("")
+      : '<div class="no-logs">No logs found for tools in this service.</div>';
 
   return `
 <!DOCTYPE html>
@@ -498,7 +518,7 @@ export const renderServiceTools = (data: ServiceToolsData): string => {
             <strong>Service:</strong> ${displayName}<br>
             <strong>Total Tools:</strong> ${serviceTools.length}<br>
             <strong>Total Size:</strong> ${totalSize.toLocaleString()} characters<br>
-            <strong>HTTP Methods:</strong> ${methods.join(', ')}
+            <strong>HTTP Methods:</strong> ${methods.join(", ")}
         </div>
 
         <!-- Tabs -->

@@ -1,5 +1,5 @@
-import { AAPMcpToolDefinition } from '../openapi-loader.js';
-import { renderHeader, getHeaderStyles } from '../header.js';
+import { AAPMcpToolDefinition } from "../openapi-loader.js";
+import { renderHeader, getHeaderStyles } from "../header.js";
 
 interface DashboardData {
   allTools: AAPMcpToolDefinition[];
@@ -14,21 +14,27 @@ export const renderDashboard = (data: DashboardData): string => {
   const totalSize = allTools.reduce((sum, tool) => sum + (tool.size || 0), 0);
 
   // Calculate category statistics dynamically
-  const categoryStats: Record<string, { tools: AAPMcpToolDefinition[]; size: number }> = {};
+  const categoryStats: Record<
+    string,
+    { tools: AAPMcpToolDefinition[]; size: number }
+  > = {};
   for (const [categoryName, categoryTools] of Object.entries(allCategories)) {
-    const tools = allTools.filter(tool => categoryTools.includes(tool.name));
+    const tools = allTools.filter((tool) => categoryTools.includes(tool.name));
     categoryStats[categoryName] = {
       tools,
-      size: tools.reduce((sum, tool) => sum + (tool.size || 0), 0)
+      size: tools.reduce((sum, tool) => sum + (tool.size || 0), 0),
     };
   }
 
   // Count tools by service
-  const serviceStats = allTools.reduce((acc, tool) => {
-    const service = tool.service || 'unknown';
-    acc[service] = (acc[service] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const serviceStats = allTools.reduce(
+    (acc, tool) => {
+      const service = tool.service || "unknown";
+      acc[service] = (acc[service] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   return `
 <!DOCTYPE html>
@@ -255,9 +261,12 @@ export const renderDashboard = (data: DashboardData): string => {
                     </div>
                 </div>
                 <div class="service-stats">
-                    ${Object.entries(serviceStats).map(([service, count]) =>
-                        `<span class="service-badge service-${service}">${service}: ${count}</span>`
-                    ).join('')}
+                    ${Object.entries(serviceStats)
+                      .map(
+                        ([service, count]) =>
+                          `<span class="service-badge service-${service}">${service}: ${count}</span>`,
+                      )
+                      .join("")}
                 </div>
                 <br><br>
                 <a href="/tools" class="btn">Browse All Tools</a>
@@ -286,9 +295,12 @@ export const renderDashboard = (data: DashboardData): string => {
                     </div>
                 </div>
                 <div class="service-stats">
-                    ${Object.entries(serviceStats).map(([service, count]) =>
-                        `<span class="service-badge service-${service}">${service}: ${count}</span>`
-                    ).join('')}
+                    ${Object.entries(serviceStats)
+                      .map(
+                        ([service, count]) =>
+                          `<span class="service-badge service-${service}">${service}: ${count}</span>`,
+                      )
+                      .join("")}
                 </div>
                 <br><br>
                 <a href="/services" class="btn" style="background: linear-gradient(45deg, #ff6b6b, #ee5a24);">Explore Services</a>
@@ -303,12 +315,16 @@ export const renderDashboard = (data: DashboardData): string => {
                     Understand the different user categories and their tool access levels. Categories control which tools are available based on user permissions and authentication status.
                 </p>
                 <div class="card-stats">
-                    ${Object.entries(categoryStats).map(([categoryName, stats]) => `
+                    ${Object.entries(categoryStats)
+                      .map(
+                        ([categoryName, stats]) => `
                     <div class="stat">
                         <div class="stat-number">${stats.tools.length} tools</div>
                         <div class="stat-label">${categoryName.charAt(0).toUpperCase() + categoryName.slice(1)}</div>
                     </div>
-                    `).join('')}
+                    `,
+                      )
+                      .join("")}
                 </div>
                 <br>
                 <a href="/category" class="btn btn-categories">Explore Categories</a>
@@ -332,7 +348,7 @@ export const renderDashboard = (data: DashboardData): string => {
                         <div class="stat-label">Services</div>
                     </div>
                     <div class="stat">
-                        <div class="stat-number">${[...new Set(allTools.map(t => t.method.toUpperCase()))].length}</div>
+                        <div class="stat-number">${[...new Set(allTools.map((t) => t.method.toUpperCase()))].length}</div>
                         <div class="stat-label">HTTP Methods</div>
                     </div>
                 </div>
@@ -340,7 +356,9 @@ export const renderDashboard = (data: DashboardData): string => {
                 <a href="/endpoints" class="btn" style="background: linear-gradient(45deg, #ffc107, #e67e22);">View API Endpoints</a>
             </div>
 
-            ${recordApiQueries ? `
+            ${
+              recordApiQueries
+                ? `
             <div class="card">
                 <div class="card-header">
                     <div class="card-icon" style="background: linear-gradient(45deg, #17a2b8, #138496);">📊</div>
@@ -366,7 +384,9 @@ export const renderDashboard = (data: DashboardData): string => {
                 <br>
                 <a href="/logs" class="btn" style="background: linear-gradient(45deg, #17a2b8, #138496);">View Request Logs</a>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
         </div>
     </div>
 </body>
