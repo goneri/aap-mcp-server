@@ -1,6 +1,7 @@
 import { AAPMcpToolDefinition } from '../openapi-loader.js';
 import { McpToolLogEntry } from '../extract-tools.js';
 import { getLogIcon } from './utils.js';
+import { renderHeader, getHeaderStyles } from '../header.js';
 
 interface ServiceData {
   name: string;
@@ -53,21 +54,7 @@ export const renderServicesOverview = (data: ServicesOverviewData): string => {
             border-bottom: 2px solid #007acc;
             padding-bottom: 10px;
         }
-        .navigation {
-            margin-bottom: 30px;
-        }
-        .nav-link {
-            background-color: #6c757d;
-            color: white;
-            padding: 6px 12px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-right: 10px;
-            font-size: 0.9em;
-        }
-        .nav-link:hover {
-            background-color: #5a6268;
-        }
+        ${getHeaderStyles()}
         .services-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -147,11 +134,7 @@ export const renderServicesOverview = (data: ServicesOverviewData): string => {
     <div class="container">
         <h1>Services Overview</h1>
 
-        <div class="navigation">
-            <a href="/" class="nav-link">Dashboard</a>
-            <a href="/tools" class="nav-link">All Tools</a>
-            <a href="/category" class="nav-link">Categories</a>
-        </div>
+        ${renderHeader()}
 
         <div class="summary">
             <h2>Available Services</h2>
@@ -292,21 +275,7 @@ export const renderServiceTools = (data: ServiceToolsData): string => {
             font-size: 0.9em;
             margin-left: 10px;
         }
-        .navigation {
-            margin-bottom: 30px;
-        }
-        .nav-link {
-            background-color: #6c757d;
-            color: white;
-            padding: 6px 12px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-right: 10px;
-            font-size: 0.9em;
-        }
-        .nav-link:hover {
-            background-color: #5a6268;
-        }
+        ${getHeaderStyles()}
 
         /* Tabs */
         .tabs {
@@ -523,12 +492,7 @@ export const renderServiceTools = (data: ServiceToolsData): string => {
     <div class="container">
         <h1>${displayName} Service<span class="service-badge">${serviceTools.length} tools</span></h1>
 
-        <div class="navigation">
-            <a href="/" class="nav-link">Dashboard</a>
-            <a href="/services" class="nav-link">All Services</a>
-            <a href="/tools" class="nav-link">All Tools</a>
-            <a href="/category" class="nav-link">Categories</a>
-        </div>
+        ${renderHeader()}
 
         <div class="stats">
             <strong>Service:</strong> ${displayName}<br>

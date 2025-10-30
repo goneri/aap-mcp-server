@@ -1,6 +1,7 @@
 import { AAPMcpToolDefinition } from '../openapi-loader.js';
 import { McpToolLogEntry } from '../extract-tools.js';
 import { getLogIcon } from './utils.js';
+import { renderHeader, getHeaderStyles } from '../header.js';
 
 export interface EndpointData {
   path: string;
@@ -399,6 +400,7 @@ export const renderEndpointsOverview = (data: EndpointsOverviewData): string => 
         .filter-section button:hover {
             background-color: #c0392b;
         }
+        ${getHeaderStyles()}
     </style>
     <script>
         let currentSort = { column: null, direction: 'asc' };
@@ -506,8 +508,9 @@ export const renderEndpointsOverview = (data: EndpointsOverviewData): string => 
 </head>
 <body>
     <div class="container">
-        <a href="/" class="back-link">← Back to Dashboard</a>
         <h1>AAP API Endpoints Overview</h1>
+
+        ${renderHeader()}
 
         ${allCategories ? `
         <div class="filter-section">
