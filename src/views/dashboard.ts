@@ -1,4 +1,5 @@
 import { AAPMcpToolDefinition } from '../openapi-loader.js';
+import { renderHeader, getHeaderStyles } from '../header.js';
 
 interface DashboardData {
   allTools: AAPMcpToolDefinition[];
@@ -198,6 +199,7 @@ export const renderDashboard = (data: DashboardData): string => {
         .service-gateway { background: #4caf50; color: white; }
         .service-galaxy { background: #ff9800; color: white; }
         .service-unknown { background: #f44336; color: white; }
+        ${getHeaderStyles()}
     </style>
 </head>
 <body>
@@ -206,6 +208,8 @@ export const renderDashboard = (data: DashboardData): string => {
             <h1>AAP MCP Dashboard</h1>
             <p>Ansible Automation Platform Model Context Protocol Interface</p>
         </div>
+
+        ${renderHeader()}
 
         <div class="summary-grid">
             <div class="summary-card">

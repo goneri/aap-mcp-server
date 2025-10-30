@@ -1,3 +1,5 @@
+import { renderHeader, getHeaderStyles } from '../header.js';
+
 interface LogsEntry {
   timestamp: string;
   toolName: string;
@@ -72,21 +74,7 @@ export const renderLogs = (data: LogsData): string => {
             padding-bottom: 10px;
             margin-bottom: 30px;
         }
-        .navigation {
-            margin-bottom: 30px;
-        }
-        .nav-link {
-            background-color: #6c757d;
-            color: white;
-            padding: 6px 12px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-right: 10px;
-            font-size: 0.9em;
-        }
-        .nav-link:hover {
-            background-color: #5a6268;
-        }
+        ${getHeaderStyles()}
         .summary {
             background-color: #e3f2fd;
             padding: 20px;
@@ -204,12 +192,7 @@ export const renderLogs = (data: LogsData): string => {
     <div class="container">
         <h1>Request Logs<span style="color: #6c757d; font-size: 0.7em; margin-left: 15px;">Last ${logEntriesSizeLimit.toLocaleString()} requests</span></h1>
 
-        <div class="navigation">
-            <a href="/" class="nav-link">Dashboard</a>
-            <a href="/tools" class="nav-link">Tools</a>
-            <a href="/services" class="nav-link">Services</a>
-            <a href="/category" class="nav-link">Categories</a>
-        </div>
+        ${renderHeader()}
 
         <div class="summary">
             <h2>Log Summary</h2>
