@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync } from "fs";
 import type { McpToolDefinition } from "openapi-mcp-generator";
 
 // TypeScript interfaces for OpenAPI specification
@@ -11,7 +11,7 @@ export interface OpenApiInfo {
 
 export interface OpenApiParameter {
   name: string;
-  in: 'query' | 'header' | 'path' | 'cookie';
+  in: "query" | "header" | "path" | "cookie";
   required?: boolean;
   schema?: OpenApiSchema;
   description?: string;
@@ -29,10 +29,13 @@ export interface OpenApiSchema {
 
 export interface OpenApiResponse {
   description: string;
-  content?: Record<string, {
-    schema?: OpenApiSchema;
-    [key: string]: unknown;
-  }>;
+  content?: Record<
+    string,
+    {
+      schema?: OpenApiSchema;
+      [key: string]: unknown;
+    }
+  >;
   [key: string]: unknown;
 }
 
@@ -43,10 +46,13 @@ export interface OpenApiOperation {
   parameters?: OpenApiParameter[];
   requestBody?: {
     required?: boolean;
-    content?: Record<string, {
-      schema?: OpenApiSchema;
-      [key: string]: unknown;
-    }>;
+    content?: Record<
+      string,
+      {
+        schema?: OpenApiSchema;
+        [key: string]: unknown;
+      }
+    >;
     [key: string]: unknown;
   };
   responses: Record<string, OpenApiResponse>;
@@ -120,7 +126,9 @@ export interface DefaultServiceConfig {
 /**
  * Gets default configurations for all supported services
  */
-export const getDefaultServiceConfigs = (baseUrl: string): Record<string, DefaultServiceConfig> => {
+export const getDefaultServiceConfigs = (
+  baseUrl: string,
+): Record<string, DefaultServiceConfig> => {
   return {
     eda: {
       url: `${baseUrl}/api/eda/v1/openapi.json`,
@@ -140,7 +148,9 @@ export const getDefaultServiceConfigs = (baseUrl: string): Record<string, Defaul
 /**
  * Reformat function for EDA tools
  */
-export const reformatEdaTool = (tool: AAPMcpToolDefinition): AAPMcpToolDefinition => {
+export const reformatEdaTool = (
+  tool: AAPMcpToolDefinition,
+): AAPMcpToolDefinition => {
   tool.name = "eda." + tool.name;
   tool.pathTemplate = "/api/eda/v1" + tool.pathTemplate;
   return tool;
@@ -149,15 +159,23 @@ export const reformatEdaTool = (tool: AAPMcpToolDefinition): AAPMcpToolDefinitio
 /**
  * Reformat function for Gateway tools
  */
-export const reformatGatewayTool = (tool: AAPMcpToolDefinition): AAPMcpToolDefinition | false => {
+export const reformatGatewayTool = (
+  tool: AAPMcpToolDefinition,
+): AAPMcpToolDefinition | false => {
   tool.name = "gateway." + tool.name;
   const originalDescription = tool.description;
-  tool.description = tool.description?.trim().split('\n\n')[0];
-  if (originalDescription && originalDescription.trim() != tool.description.trim()) {
+  tool.description = tool.description?.trim().split("\n\n")[0];
+  if (
+    originalDescription &&
+    originalDescription.trim() != tool.description.trim()
+  ) {
     tool.logs.push({ severity: "WARN", msg: "description was truncated" });
   }
   if (!tool.deprecated && tool.description?.includes("Legacy")) {
-    tool.logs.push({ severity: "WARN", msg: "tool should be marked as deprecated" });
+    tool.logs.push({
+      severity: "WARN",
+      msg: "tool should be marked as deprecated",
+    });
   }
   return tool;
 };
@@ -165,22 +183,39 @@ export const reformatGatewayTool = (tool: AAPMcpToolDefinition): AAPMcpToolDefin
 /**
  * Reformat function for Galaxy tools
  */
-export const reformatGalaxyTool = (tool: AAPMcpToolDefinition): AAPMcpToolDefinition | false => {
+export const reformatGalaxyTool = (
+  tool: AAPMcpToolDefinition,
+): AAPMcpToolDefinition | false => {
   if (tool.pathTemplate?.startsWith("/api/galaxy/_ui")) {
-    tool.logs.push({ severity: "INFO", msg: "tool ignored, path starts with /api/galaxy/_ui" });
+    tool.logs.push({
+      severity: "INFO",
+      msg: "tool ignored, path starts with /api/galaxy/_ui",
+    });
     return false;
   }
   if (!tool.name.startsWith("api_galaxy_v3")) {
-    tool.logs.push({ severity: "INFO", msg: "tool ignored, name doesn't start with api_galaxy_v3" });
+    tool.logs.push({
+      severity: "INFO",
+      msg: "tool ignored, name doesn't start with api_galaxy_v3",
+    });
     return false;
   }
   const originalName = tool.name;
-  tool.name = tool.name.replace(/(api_galaxy_v3_|api_galaxy_|)(.+)/, "galaxy.$2");
+  tool.name = tool.name.replace(
+    /(api_galaxy_v3_|api_galaxy_|)(.+)/,
+    "galaxy.$2",
+  );
   if (originalName != tool.name) {
-    tool.logs.push({ severity: "WARN", msg: `tool name rewritten from ${originalName}` });
+    tool.logs.push({
+      severity: "WARN",
+      msg: `tool name rewritten from ${originalName}`,
+    });
   }
   if (!tool.deprecated && tool.description?.includes("DEPRECATED")) {
-    tool.logs.push({ severity: "WARN", msg: "tool should be marked as deprecated" });
+    tool.logs.push({
+      severity: "WARN",
+      msg: "tool should be marked as deprecated",
+    });
   }
   return tool;
 };
@@ -188,11 +223,16 @@ export const reformatGalaxyTool = (tool: AAPMcpToolDefinition): AAPMcpToolDefini
 /**
  * Reformat function for Controller tools
  */
-export const reformatControllerTool = (tool: AAPMcpToolDefinition): AAPMcpToolDefinition => {
-  tool.pathTemplate = tool.pathTemplate?.replace("/api/v2", "/api/controller/v2");
+export const reformatControllerTool = (
+  tool: AAPMcpToolDefinition,
+): AAPMcpToolDefinition => {
+  tool.pathTemplate = tool.pathTemplate?.replace(
+    "/api/v2",
+    "/api/controller/v2",
+  );
   tool.name = tool.name.replace(/api_(.+)/, "controller.$1");
   const originalDescription = tool.description;
-  tool.description = tool.description?.trim().split('\n\n')[0];
+  tool.description = tool.description?.trim().split("\n\n")[0];
   if (originalDescription.trim() != tool.description.trim()) {
     tool.logs.push({ severity: "WARN", msg: "description was truncated" });
   }
@@ -202,7 +242,10 @@ export const reformatControllerTool = (tool: AAPMcpToolDefinition): AAPMcpToolDe
 /**
  * Gets reformat functions for all supported services
  */
-export const getReformatFunctions = (): Record<string, (tool: AAPMcpToolDefinition) => AAPMcpToolDefinition | false> => {
+export const getReformatFunctions = (): Record<
+  string,
+  (tool: AAPMcpToolDefinition) => AAPMcpToolDefinition | false
+> => {
   return {
     eda: reformatEdaTool,
     gateway: reformatGatewayTool,
@@ -216,9 +259,9 @@ export const getReformatFunctions = (): Record<string, (tool: AAPMcpToolDefiniti
  */
 export const filterEnabledServices = (
   servicesConfig: ServiceConfig[],
-  defaultConfigs: Record<string, DefaultServiceConfig>
+  defaultConfigs: Record<string, DefaultServiceConfig>,
 ): ServiceConfig[] => {
-  return servicesConfig.filter(serviceConfig => {
+  return servicesConfig.filter((serviceConfig) => {
     const enabled = serviceConfig.enabled ?? true;
     return enabled && defaultConfigs[serviceConfig.name];
   });
@@ -230,11 +273,14 @@ export const filterEnabledServices = (
 export const buildSpecEntries = (
   servicesConfig: ServiceConfig[],
   defaultConfigs: Record<string, DefaultServiceConfig>,
-  reformatFunctions: Record<string, (tool: AAPMcpToolDefinition) => AAPMcpToolDefinition | false>
+  reformatFunctions: Record<
+    string,
+    (tool: AAPMcpToolDefinition) => AAPMcpToolDefinition | false
+  >,
 ): OpenApiSpecEntry[] => {
   const enabledServices = filterEnabledServices(servicesConfig, defaultConfigs);
 
-  return enabledServices.map(serviceConfig => {
+  return enabledServices.map((serviceConfig) => {
     const defaults = defaultConfigs[serviceConfig.name];
     const url = serviceConfig.url || defaults.url;
     return {
@@ -249,31 +295,40 @@ export const buildSpecEntries = (
 /**
  * Loads a single OpenAPI spec from URL or local file
  */
-export const loadSingleSpec = async (specEntry: OpenApiSpecEntry): Promise<OpenApiSpecEntry> => {
+export const loadSingleSpec = async (
+  specEntry: OpenApiSpecEntry,
+): Promise<OpenApiSpecEntry> => {
   try {
     // If local_path is set, use it directly instead of fetching from URL
     if (specEntry.localPath) {
-      console.log(`Loading OpenAPI spec from local file: ${specEntry.localPath}`);
-      const localContent = readFileSync(specEntry.localPath, 'utf8');
+      console.log(
+        `Loading OpenAPI spec from local file: ${specEntry.localPath}`,
+      );
+      const localContent = readFileSync(specEntry.localPath, "utf8");
       specEntry.spec = JSON.parse(localContent);
-      console.log(`Successfully loaded OpenAPI spec from local file: ${specEntry.localPath}`);
+      console.log(
+        `Successfully loaded OpenAPI spec from local file: ${specEntry.localPath}`,
+      );
     } else {
       console.log(`Fetching OpenAPI spec from: ${specEntry.url}`);
       const response = await fetch(specEntry.url, {
         headers: {
-          'Accept': 'application/json'
-        }
+          Accept: "application/json",
+        },
       });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      specEntry.spec = await response.json() as OpenApiSpec;
+      specEntry.spec = (await response.json()) as OpenApiSpec;
       console.log(`Successfully loaded OpenAPI spec from: ${specEntry.url}`);
     }
   } catch (error) {
-    console.error(`Error loading OpenAPI spec from ${specEntry.localPath ? specEntry.localPath : specEntry.url}:`, error);
+    console.error(
+      `Error loading OpenAPI spec from ${specEntry.localPath ? specEntry.localPath : specEntry.url}:`,
+      error,
+    );
     // Continue with other specs even if this one fails
   }
 
@@ -285,18 +340,24 @@ export const loadSingleSpec = async (specEntry: OpenApiSpecEntry): Promise<OpenA
  */
 export const loadOpenApiSpecs = async (
   servicesConfig: ServiceConfig[],
-  baseUrl: string
+  baseUrl: string,
 ): Promise<OpenApiSpecEntry[]> => {
   const defaultConfigs = getDefaultServiceConfigs(baseUrl);
   const reformatFunctions = getReformatFunctions();
 
   // Build spec entries from configuration
-  const enabledServiceNames = servicesConfig.map(s => s.name);
+  const enabledServiceNames = servicesConfig.map((s) => s.name);
   const servicesToLoad = enabledServiceNames.length > 0 ? servicesConfig : [];
 
-  const specUrls = buildSpecEntries(servicesToLoad, defaultConfigs, reformatFunctions);
+  const specUrls = buildSpecEntries(
+    servicesToLoad,
+    defaultConfigs,
+    reformatFunctions,
+  );
 
-  console.log(`Loading OpenAPI specs for services: ${enabledServiceNames.length > 0 ? enabledServiceNames.join(', ') : 'all'} (${specUrls.length} specs)`);
+  console.log(
+    `Loading OpenAPI specs for services: ${enabledServiceNames.length > 0 ? enabledServiceNames.join(", ") : "all"} (${specUrls.length} specs)`,
+  );
 
   // Load all specs
   const loadedSpecs: OpenApiSpecEntry[] = [];

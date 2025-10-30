@@ -1,7 +1,7 @@
-import { AAPMcpToolDefinition } from '../openapi-loader.js';
-import { McpToolLogEntry } from '../extract-tools.js';
-import { getLogIcon } from './utils.js';
-import { renderHeader, getHeaderStyles } from '../header.js';
+import { AAPMcpToolDefinition } from "../openapi-loader.js";
+import { McpToolLogEntry } from "../extract-tools.js";
+import { getLogIcon } from "./utils.js";
+import { renderHeader, getHeaderStyles } from "../header.js";
 
 export interface EndpointData {
   path: string;
@@ -20,8 +20,11 @@ export interface EndpointsOverviewData {
   selectedCategory?: string;
 }
 
-export const renderEndpointsOverview = (data: EndpointsOverviewData): string => {
-  const { allTools, endpointsByService, allCategories, selectedCategory } = data;
+export const renderEndpointsOverview = (
+  data: EndpointsOverviewData,
+): string => {
+  const { allTools, endpointsByService, allCategories, selectedCategory } =
+    data;
 
   return `
 <!DOCTYPE html>
@@ -512,20 +515,34 @@ export const renderEndpointsOverview = (data: EndpointsOverviewData): string => 
 
         ${renderHeader()}
 
-        ${allCategories ? `
+        ${
+          allCategories
+            ? `
         <div class="filter-section">
             <label for="category-filter">Filter by Category:</label>
             <select id="category-filter" onchange="filterByCategory(this.value)">
                 <option value="">All Categories</option>
-                ${Object.keys(allCategories).map(category => `
-                    <option value="${category}" ${selectedCategory === category ? 'selected' : ''}>
-                        ${category.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                ${Object.keys(allCategories)
+                  .map(
+                    (category) => `
+                    <option value="${category}" ${selectedCategory === category ? "selected" : ""}>
+                        ${category
+                          .split("_")
+                          .map(
+                            (word) =>
+                              word.charAt(0).toUpperCase() + word.slice(1),
+                          )
+                          .join(" ")}
                     </option>
-                `).join('')}
+                `,
+                  )
+                  .join("")}
             </select>
-            ${selectedCategory ? '<button onclick="clearFilter()">Clear Filter</button>' : ''}
+            ${selectedCategory ? '<button onclick="clearFilter()">Clear Filter</button>' : ""}
         </div>
-        ` : ''}
+        `
+            : ""
+        }
 
         <div class="stats">
             <div class="stat-card">
@@ -537,14 +554,20 @@ export const renderEndpointsOverview = (data: EndpointsOverviewData): string => 
                 <div class="stat-label">Services</div>
             </a>
             <a href="/tools" class="stat-card stat-card-clickable">
-                <div class="stat-number">${Object.values(endpointsByService).flat().filter(e => e.toolName).length}</div>
+                <div class="stat-number">${
+                  Object.values(endpointsByService)
+                    .flat()
+                    .filter((e) => e.toolName).length
+                }</div>
                 <div class="stat-label">Tools</div>
             </a>
         </div>
 
-        ${Object.entries(endpointsByService).map(([service, endpoints]) => {
-          const displayName = service.charAt(0).toUpperCase() + service.slice(1);
-          return `
+        ${Object.entries(endpointsByService)
+          .map(([service, endpoints]) => {
+            const displayName =
+              service.charAt(0).toUpperCase() + service.slice(1);
+            return `
         <div class="service-section">
             <h2>${displayName} Service (${endpoints.length} endpoints)</h2>
             <div class="endpoint-header">
@@ -555,42 +578,57 @@ export const renderEndpointsOverview = (data: EndpointsOverviewData): string => 
                 <span class="sortable-header" data-column="categories">Categories <span class="sort-indicator">↕</span></span>
                 <span class="sortable-header" data-column="logs">Logs <span class="sort-indicator">↕</span></span>
             </div>
-            ${endpoints.map(endpoint => {
-              const categoriesHtml = endpoint.categories.length > 0
-                ? endpoint.categories.map(cat => `<a href="/category/${cat}" class="category-badge category-${cat}">${cat}</a>`).join('')
-                : '';
+            ${endpoints
+              .map((endpoint) => {
+                const categoriesHtml =
+                  endpoint.categories.length > 0
+                    ? endpoint.categories
+                        .map(
+                          (cat) =>
+                            `<a href="/category/${cat}" class="category-badge category-${cat}">${cat}</a>`,
+                        )
+                        .join("")
+                    : "";
 
-              const toolLink = endpoint.toolName ? `<a href="/tools/${endpoint.toolName}" class="tool-name-link">${endpoint.toolName}</a>` : 'N/A';
+                const toolLink = endpoint.toolName
+                  ? `<a href="/tools/${endpoint.toolName}" class="tool-name-link">${endpoint.toolName}</a>`
+                  : "N/A";
 
-              // Count log entries by severity
-              const logCounts = endpoint.logs.reduce((counts, log) => {
-                const severity = log.severity.toLowerCase();
-                counts[severity] = (counts[severity] || 0) + 1;
-                return counts;
-              }, {} as Record<string, number>);
+                // Count log entries by severity
+                const logCounts = endpoint.logs.reduce(
+                  (counts, log) => {
+                    const severity = log.severity.toLowerCase();
+                    counts[severity] = (counts[severity] || 0) + 1;
+                    return counts;
+                  },
+                  {} as Record<string, number>,
+                );
 
-              const logsHtml = Object.entries(logCounts).map(([severity, count]) => {
+                const logsHtml = Object.entries(logCounts)
+                  .map(([severity, count]) => {
                     const icon = getLogIcon(severity.toUpperCase());
                     return `<a href="/tools/${encodeURIComponent(endpoint.name)}" class="log-badge ${severity}">
                       <span class="log-icon ${severity}">${icon}</span>
                       ${count}
                     </a>`;
-                  }).join(' ');
+                  })
+                  .join(" ");
 
-              return `
+                return `
             <div class="endpoint">
                 <span class="method ${endpoint.method}">${endpoint.method}</span>
                 <span class="path">${endpoint.path}</span>
-                <span class="description">${endpoint.description || 'No description available'}</span>
-                <span class="tool-name${!endpoint.toolName ? ' empty' : ''}">${toolLink}</span>
+                <span class="description">${endpoint.description || "No description available"}</span>
+                <span class="tool-name${!endpoint.toolName ? " empty" : ""}">${toolLink}</span>
                 <span class="categories">${categoriesHtml}</span>
                 <span class="logs">${logsHtml}</span>
             </div>`;
-            }).join('')}
+              })
+              .join("")}
         </div>`;
-        }).join('')}
+          })
+          .join("")}
     </div>
 </body>
 </html>`;
 };
-

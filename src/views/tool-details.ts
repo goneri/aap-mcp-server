@@ -1,6 +1,6 @@
-import { AAPMcpToolDefinition } from '../openapi-loader.js';
-import { getLogIcon } from './utils.js';
-import { renderHeader, getHeaderStyles } from '../header.js';
+import { AAPMcpToolDefinition } from "../openapi-loader.js";
+import { getLogIcon } from "./utils.js";
+import { renderHeader, getHeaderStyles } from "../header.js";
 
 interface LogEntry {
   timestamp: string;
@@ -25,7 +25,14 @@ interface ToolDetailsData {
 }
 
 export const renderToolDetails = (data: ToolDetailsData): string => {
-  const { tool, logEntries, last10Calls, errorCodeSummary, chartData, categoriesWithAccess } = data;
+  const {
+    tool,
+    logEntries,
+    last10Calls,
+    errorCodeSummary,
+    chartData,
+    categoriesWithAccess,
+  } = data;
 
   // Helper function to format timestamp for display
   const formatTimestamp = (timestamp: string) => {
@@ -34,42 +41,42 @@ export const renderToolDetails = (data: ToolDetailsData): string => {
 
   // Helper function to get status color
   const getStatusColor = (code: number) => {
-    if (code >= 200 && code < 300) return '#28a745'; // green
-    if (code >= 300 && code < 400) return '#ffc107'; // yellow
-    if (code >= 400 && code < 500) return '#fd7e14'; // orange
-    if (code >= 500) return '#dc3545'; // red
-    return '#6c757d'; // gray
+    if (code >= 200 && code < 300) return "#28a745"; // green
+    if (code >= 300 && code < 400) return "#ffc107"; // yellow
+    if (code >= 400 && code < 500) return "#fd7e14"; // orange
+    if (code >= 500) return "#dc3545"; // red
+    return "#6c757d"; // gray
   };
 
   // Helper function to get status text
   const getStatusText = (code: number) => {
-    if (code >= 200 && code < 300) return 'Success';
-    if (code >= 300 && code < 400) return 'Redirect';
-    if (code >= 400 && code < 500) return 'Client Error';
-    if (code >= 500) return 'Server Error';
-    return 'Unknown';
+    if (code >= 200 && code < 300) return "Success";
+    if (code >= 300 && code < 400) return "Redirect";
+    if (code >= 400 && code < 500) return "Client Error";
+    if (code >= 500) return "Server Error";
+    return "Unknown";
   };
 
   // Format the input schema for display
   const formatSchema = (schema: any, level = 0): string => {
-    if (!schema) return 'No schema defined';
+    if (!schema) return "No schema defined";
 
-    const indent = '  '.repeat(level);
-    let result = '';
+    const indent = "  ".repeat(level);
+    let result = "";
 
-    if (schema.type === 'object' && schema.properties) {
-      result += '{\n';
+    if (schema.type === "object" && schema.properties) {
+      result += "{\n";
       for (const [key, value] of Object.entries(schema.properties)) {
         const prop = value as any;
-        const required = schema.required?.includes(key) ? ' (required)' : '';
+        const required = schema.required?.includes(key) ? " (required)" : "";
         result += `${indent}  "${key}"${required}: `;
-        if (prop.type === 'object') {
+        if (prop.type === "object") {
           result += formatSchema(prop, level + 1);
         } else {
-          result += `${prop.type || 'any'}`;
+          result += `${prop.type || "any"}`;
           if (prop.description) result += ` // ${prop.description}`;
         }
-        result += '\n';
+        result += "\n";
       }
       result += `${indent}}`;
     } else {
@@ -431,23 +438,30 @@ export const renderToolDetails = (data: ToolDetailsData): string => {
 
         <div class="tool-header">
             <h1>${tool.name}</h1>
-            <span class="service-badge service-${tool.service || 'unknown'}">${tool.service || 'unknown'}</span>
+            <span class="service-badge service-${tool.service || "unknown"}">${tool.service || "unknown"}</span>
         </div>
 
-        ${tool.deprecated ? `
+        ${
+          tool.deprecated
+            ? `
         <div class="deprecation-warning">
             <span class="deprecation-icon">⚠️</span>
             <div>
                 <strong>Deprecation Warning:</strong> This endpoint is deprecated.
             </div>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
 
-        ${tool.logs && tool.logs.length > 0 ? `
+        ${
+          tool.logs && tool.logs.length > 0
+            ? `
         <div class="tool-logs-section">
             <h2>Messages</h2>
             <div class="log-entries">
-                ${tool.logs.map(log => {
+                ${tool.logs
+                  .map((log) => {
                     const icon = getLogIcon(log.severity);
                     return `
                     <div class="log-entry">
@@ -456,14 +470,19 @@ export const renderToolDetails = (data: ToolDetailsData): string => {
                         <span class="log-severity-badge ${log.severity.toLowerCase()}">${log.severity}</span>
                     </div>
                     `;
-                }).join('')}
+                  })
+                  .join("")}
             </div>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
 
         <div class="schema-section">
             <h2>Usage Statistics</h2>
-            ${logEntries.length > 0 ? `
+            ${
+              logEntries.length > 0
+                ? `
             <p><strong>Total Calls:</strong> ${logEntries.length}</p>
             <div class="chart-container">
                 <div class="chart-wrapper">
@@ -475,26 +494,36 @@ export const renderToolDetails = (data: ToolDetailsData): string => {
                         <div class="stat-card">
                             <h4>Response Codes</h4>
                             <div class="code-summary">
-                                ${Object.entries(errorCodeSummary).map(([code, count]) => `
+                                ${Object.entries(errorCodeSummary)
+                                  .map(
+                                    ([code, count]) => `
                                 <div class="code-entry" style="border-left: 4px solid ${getStatusColor(Number(code))};">
                                     <span class="code-number">${code}</span>
                                     <span class="code-text">${getStatusText(Number(code))}</span>
                                     <span class="code-count">${count} calls</span>
                                 </div>
-                                `).join('')}
+                                `,
+                                  )
+                                  .join("")}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            ` : '<p><em>No usage data available</em></p>'}
+            `
+                : "<p><em>No usage data available</em></p>"
+            }
         </div>
 
-        ${last10Calls.length > 0 ? `
+        ${
+          last10Calls.length > 0
+            ? `
         <div class="schema-section">
             <h2>Recent Calls (Last 10)</h2>
             <div class="calls-list">
-                ${last10Calls.map(entry => `
+                ${last10Calls
+                  .map(
+                    (entry) => `
                 <div class="call-entry">
                     <div class="call-header">
                         <span class="call-timestamp">${formatTimestamp(entry.timestamp)}</span>
@@ -503,21 +532,35 @@ export const renderToolDetails = (data: ToolDetailsData): string => {
                         </span>
                     </div>
                     <div class="call-endpoint">${entry.endpoint}</div>
-                    ${entry.response && typeof entry.response === 'object' && entry.response.error ? `
+                    ${
+                      entry.response &&
+                      typeof entry.response === "object" &&
+                      entry.response.error
+                        ? `
                     <div class="call-error">Error: ${entry.response.error}</div>
-                    ` : ''}
+                    `
+                        : ""
+                    }
                 </div>
-                `).join('')}
+                `,
+                  )
+                  .join("")}
             </div>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
 
-        ${tool.description ? `
+        ${
+          tool.description
+            ? `
         <div class="description-section">
             <h2>Description</h2>
             <p>${tool.description}</p>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
 
         <div class="info-grid">
             <div class="info-card">
@@ -539,39 +582,57 @@ export const renderToolDetails = (data: ToolDetailsData): string => {
 
             <div class="info-card">
                 <h3>Service</h3>
-                <div class="info-value">${tool.service || 'unknown'}</div>
+                <div class="info-value">${tool.service || "unknown"}</div>
             </div>
         </div>
 
         <div class="categories-section">
             <h2>Available to Categories</h2>
-            ${categoriesWithAccess.length > 0 ? `
+            ${
+              categoriesWithAccess.length > 0
+                ? `
             <div class="category-badges">
-                ${categoriesWithAccess.map(category => `
+                ${categoriesWithAccess
+                  .map(
+                    (category) => `
                 <a href="/category/${category.name}" class="category-badge" style="background-color: ${category.color};">
                     ${category.displayName}
                 </a>
-                `).join('')}
+                `,
+                  )
+                  .join("")}
             </div>
-            ` : '<p class="no-categories">This tool is not available to any category.</p>'}
+            `
+                : '<p class="no-categories">This tool is not available to any category.</p>'
+            }
         </div>
 
-        ${tool.inputSchema ? `
+        ${
+          tool.inputSchema
+            ? `
         <div class="schema-section">
             <h2>Input Schema</h2>
             <div class="schema-code">${formatSchema(tool.inputSchema)}</div>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
 
-        ${tool.parameters && tool.parameters.length > 0 ? `
+        ${
+          tool.parameters && tool.parameters.length > 0
+            ? `
         <div class="schema-section">
             <h2>Parameters</h2>
             <div class="schema-code">${JSON.stringify(tool.parameters, null, 2)}</div>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
     </div>
 
-    ${logEntries.length > 0 ? `
+    ${
+      logEntries.length > 0
+        ? `
     <script>
         // Create pie chart for success vs error distribution
         const ctx = document.getElementById('statusChart').getContext('2d');
@@ -623,7 +684,9 @@ export const renderToolDetails = (data: ToolDetailsData): string => {
 
         new Chart(ctx, config);
     </script>
-    ` : ''}
+    `
+        : ""
+    }
 </body>
 </html>`;
 };
