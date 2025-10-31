@@ -11,17 +11,20 @@ A Model Context Protocol (MCP) service that provides access to Ansible Automatio
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd aap-mcp-server
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Build the project:
+
 ```bash
 npm run build
 ```
@@ -62,9 +65,9 @@ Configure which AAP services to load and how to access their OpenAPI specificati
 ```yaml
 services:
   - name: controller
-    url: "https://custom-controller.example.com/api/v2/schema/"     # Optional: custom URL
-    local_path: "data/controller-schema.json"                       # Optional: local file path
-    enabled: true                                                   # Optional: enable/disable service
+    url: "https://custom-controller.example.com/api/v2/schema/" # Optional: custom URL
+    local_path: "data/controller-schema.json" # Optional: local file path
+    enabled: true # Optional: enable/disable service
 
   - name: galaxy
     url: "https://custom-galaxy.example.com/api/v3/openapi.json"
@@ -76,10 +79,11 @@ services:
     enabled: true
 
   - name: eda
-    enabled: false  # Disable this service
+    enabled: false # Disable this service
 ```
 
 **Service Configuration Rules:**
+
 - **name**: Must be one of: `controller`, `galaxy`, `gateway`, `eda`
 - **url**: Custom OpenAPI specification URL (optional, uses service defaults if not specified)
 - **local_path**: Path to local OpenAPI file (optional, if set, loads from file instead of URL)
@@ -140,17 +144,20 @@ The service supports role-based access control through user categories.
 ### Starting the Service
 
 1. **Configure the service** by copying and editing the sample configuration:
+
 ```bash
 cp aap-mcp.sample.yaml aap-mcp.yaml
 # Edit aap-mcp.yaml with your AAP instance details
 ```
 
 2. **Set your authentication token**:
+
 ```bash
 export BEARER_TOKEN_OAUTH2_AUTHENTICATION=your_aap_token_here
 ```
 
 3. **Start the service**:
+
 ```bash
 # Development mode
 npm run dev
@@ -204,16 +211,19 @@ claude mcp add aap-mcp -t http http://localhost:3000/mcp -H 'Authorization: Bear
 #### Option 2: Token in Environment Variable
 
 1. Configure the token as an environment variable:
+
 ```bash
 export BEARER_TOKEN_OAUTH2_AUTHENTICATION=your_aap_token_here
 ```
 
 2. Start the service:
+
 ```bash
 npm run dev
 ```
 
 3. Register with Claude:
+
 ```bash
 claude mcp add aap-mcp -t http http://localhost:3000/mcp
 ```
@@ -317,6 +327,7 @@ kubectl logs -l app=aap-mcp
 ```
 
 The Kubernetes deployment includes:
+
 - **ConfigMap**: Stores the YAML configuration
 - **Deployment**: Runs the service with health checks
 - **PersistentVolumeClaim**: Stores API query logs
@@ -366,6 +377,7 @@ diff aap-mcp.sample.yaml aap-mcp.yaml
 ### Logs and Debugging
 
 The service provides detailed console logging for:
+
 - Configuration loading and validation
 - OpenAPI specification loading (local files vs URLs)
 - Service enabling/disabling
@@ -377,8 +389,8 @@ Enable additional logging:
 
 ```yaml
 # In aap-mcp.yaml
-record_api_queries: true  # Enable API query logging
-enable_ui: true          # Access logs via web UI at /logs
+record_api_queries: true # Enable API query logging
+enable_ui: true # Access logs via web UI at /logs
 ```
 
 ### Health Monitoring

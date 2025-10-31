@@ -1,5 +1,5 @@
-import { AAPMcpToolDefinition } from '../openapi-loader.js';
-import { renderHeader, getHeaderStyles } from '../header.js';
+import { AAPMcpToolDefinition } from "../openapi-loader.js";
+import { renderHeader, getHeaderStyles } from "../header.js";
 
 interface CategoryData {
   name: string;
@@ -24,7 +24,9 @@ interface CategoryToolsData {
   allCategories: Record<string, string[]>;
 }
 
-export const renderCategoriesOverview = (data: CategoriesOverviewData): string => {
+export const renderCategoriesOverview = (
+  data: CategoriesOverviewData,
+): string => {
   const { categories, allTools } = data;
 
   return `
@@ -136,7 +138,9 @@ export const renderCategoriesOverview = (data: CategoriesOverviewData): string =
         </div>
 
         <div class="category-grid">
-            ${categories.map(category => `
+            ${categories
+              .map(
+                (category) => `
             <a href="/category/${category.name}" class="category-card">
                 <div class="category-header">
                     <div class="category-icon" style="background-color: ${category.color};">
@@ -156,7 +160,9 @@ export const renderCategoriesOverview = (data: CategoriesOverviewData): string =
                     </div>
                 </div>
             </a>
-            `).join('')}
+            `,
+              )
+              .join("")}
         </div>
     </div>
 </body>
@@ -164,15 +170,20 @@ export const renderCategoriesOverview = (data: CategoriesOverviewData): string =
 };
 
 export const renderCategoryTools = (data: CategoryToolsData): string => {
-  const { categoryName, displayName, filteredTools, totalSize, allCategories } = data;
+  const { categoryName, displayName, filteredTools, totalSize, allCategories } =
+    data;
 
-  const toolRows = filteredTools.map(tool => `
+  const toolRows = filteredTools
+    .map(
+      (tool) => `
     <tr>
       <td><a href="/tools/${encodeURIComponent(tool.name)}" style="color: #007acc; text-decoration: none;">${tool.name}</a></td>
       <td>${tool.size}</td>
-      <td><span class="service-${tool.service || 'unknown'}">${tool.service || 'unknown'}</span></td>
+      <td><span class="service-${tool.service || "unknown"}">${tool.service || "unknown"}</span></td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join("");
 
   return `
 <!DOCTYPE html>
@@ -277,9 +288,13 @@ export const renderCategoryTools = (data: CategoryToolsData): string => {
         ${renderHeader()}
 
         <div class="category-nav">
-            ${Object.keys(allCategories).map(name => `
-            <a href="/category/${name}" class="category-nav-link ${categoryName === name ? 'active' : ''}">${name.charAt(0).toUpperCase() + name.slice(1)}</a>
-            `).join('')}
+            ${Object.keys(allCategories)
+              .map(
+                (name) => `
+            <a href="/category/${name}" class="category-nav-link ${categoryName === name ? "active" : ""}">${name.charAt(0).toUpperCase() + name.slice(1)}</a>
+            `,
+              )
+              .join("")}
         </div>
 
         <div class="stats">
@@ -288,11 +303,14 @@ export const renderCategoryTools = (data: CategoryToolsData): string => {
             <strong>Total Size:</strong> ${totalSize.toLocaleString()} characters
         </div>
 
-        ${filteredTools.length === 0 ? `
+        ${
+          filteredTools.length === 0
+            ? `
         <div class="empty-state">
             <p>No tools are available for the ${displayName} category.</p>
         </div>
-        ` : `
+        `
+            : `
         <table>
             <thead>
                 <tr>
@@ -305,7 +323,8 @@ export const renderCategoryTools = (data: CategoryToolsData): string => {
                 ${toolRows}
             </tbody>
         </table>
-        `}
+        `
+        }
     </div>
 </body>
 </html>`;
