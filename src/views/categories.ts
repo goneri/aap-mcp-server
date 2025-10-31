@@ -1,4 +1,5 @@
 import { AAPMcpToolDefinition } from '../openapi-loader.js';
+import { renderHeader, getHeaderStyles } from '../header.js';
 
 interface CategoryData {
   name: string;
@@ -52,21 +53,7 @@ export const renderCategoriesOverview = (data: CategoriesOverviewData): string =
             border-bottom: 2px solid #007acc;
             padding-bottom: 10px;
         }
-        .navigation {
-            margin-bottom: 30px;
-        }
-        .nav-link {
-            background-color: #6c757d;
-            color: white;
-            padding: 6px 12px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-right: 10px;
-            font-size: 0.9em;
-        }
-        .nav-link:hover {
-            background-color: #5a6268;
-        }
+        ${getHeaderStyles()}
         .category-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -141,10 +128,7 @@ export const renderCategoriesOverview = (data: CategoriesOverviewData): string =
     <div class="container">
         <h1>Categories Overview</h1>
 
-        <div class="navigation">
-            <a href="/tools" class="nav-link">All Tools</a>
-            <a href="/export/tools/csv" class="nav-link">Download CSV</a>
-        </div>
+        ${renderHeader()}
 
         <div class="summary">
             <h2>System Summary</h2>
@@ -225,10 +209,13 @@ export const renderCategoryTools = (data: CategoryToolsData): string => {
             font-size: 0.9em;
             margin-left: 10px;
         }
-        .navigation {
-            margin-bottom: 30px;
+        ${getHeaderStyles()}
+        .category-nav {
+            margin-bottom: 20px;
+            padding: 15px 0;
+            border-bottom: 1px solid #dee2e6;
         }
-        .nav-link {
+        .category-nav-link {
             background-color: #6c757d;
             color: white;
             padding: 6px 12px;
@@ -237,10 +224,10 @@ export const renderCategoryTools = (data: CategoryToolsData): string => {
             margin-right: 10px;
             font-size: 0.9em;
         }
-        .nav-link:hover {
+        .category-nav-link:hover {
             background-color: #5a6268;
         }
-        .nav-link.active {
+        .category-nav-link.active {
             background-color: #007acc;
         }
         table {
@@ -287,11 +274,12 @@ export const renderCategoryTools = (data: CategoryToolsData): string => {
     <div class="container">
         <h1>${displayName} Category Tools<span class="category-badge">${filteredTools.length} tools</span></h1>
 
-        <div class="navigation">
+        ${renderHeader()}
+
+        <div class="category-nav">
             ${Object.keys(allCategories).map(name => `
-            <a href="/category/${name}" class="nav-link ${categoryName === name ? 'active' : ''}">${name.charAt(0).toUpperCase() + name.slice(1)}</a>
+            <a href="/category/${name}" class="category-nav-link ${categoryName === name ? 'active' : ''}">${name.charAt(0).toUpperCase() + name.slice(1)}</a>
             `).join('')}
-            <a href="/tools" class="nav-link">All Tools</a>
         </div>
 
         <div class="stats">

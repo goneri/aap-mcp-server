@@ -1,5 +1,6 @@
 import { AAPMcpToolDefinition } from '../openapi-loader.js';
 import { getLogIcon } from './utils.js';
+import { renderHeader, getHeaderStyles } from '../header.js';
 
 interface LogEntry {
   timestamp: string;
@@ -125,20 +126,7 @@ export const renderToolDetails = (data: ToolDetailsData): string => {
         .service-gateway { background-color: #4caf50; }
         .service-galaxy { background-color: #ff9800; }
         .service-unknown { background-color: #f44336; }
-        .navigation {
-            margin-bottom: 30px;
-        }
-        .nav-link {
-            background-color: #6c757d;
-            color: white;
-            padding: 8px 16px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-right: 10px;
-        }
-        .nav-link:hover {
-            background-color: #5a6268;
-        }
+        ${getHeaderStyles()}
         .info-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -439,11 +427,7 @@ export const renderToolDetails = (data: ToolDetailsData): string => {
 </head>
 <body>
     <div class="container">
-        <div class="navigation">
-            <a href="/tools" class="nav-link">← All Tools</a>
-            <a href="/category" class="nav-link">Categories</a>
-            <a href="/export/tools/csv" class="nav-link">Download CSV</a>
-        </div>
+        ${renderHeader()}
 
         <div class="tool-header">
             <h1>${tool.name}</h1>

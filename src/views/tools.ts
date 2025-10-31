@@ -1,4 +1,5 @@
 import { AAPMcpToolDefinition } from '../openapi-loader.js';
+import { renderHeader, getHeaderStyles } from '../header.js';
 
 interface ToolWithSuccessRate extends AAPMcpToolDefinition {
   successRate: string;
@@ -151,11 +152,14 @@ export const renderToolsList = (data: ToolsListData): string => {
         .sortable.desc .sort-indicator::after {
             content: ' ↓';
         }
+        ${getHeaderStyles()}
     </style>
 </head>
 <body>
     <div class="container">
         <h1>AAP MCP Tools List</h1>
+
+        ${renderHeader()}
 
         <div class="stats">
             <strong>Total Tools:</strong> ${tools.length}<br>
