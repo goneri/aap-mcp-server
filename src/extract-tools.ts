@@ -361,6 +361,14 @@ export function extractToolsFromApi(api: OpenAPIV3.Document, defaultInclude = tr
             const { inputSchema, parameters, requestBodyContentType } =
                 generateInputSchemaAndDetails(operation, pathItem.parameters);
 
+            if (typeof inputSchema === 'object' && inputSchema.properties) {
+                const propertiesEntries = Object.entries(inputSchema.properties).map(value => value[1]);
+                const missingDescriptions = propertiesEntries.filter((p: any) => p && typeof p === 'object' && !p.description);
+                if (missingDescriptions.length) {
+                    logs.push({ severity: "ERR", msg: "has parameter(s) with no `description` key" })
+                }
+            }
+
             // Extract parameter details for execution
             const executionParameters = parameters.map((p) => ({ name: p.name, in: p.in }));
 
