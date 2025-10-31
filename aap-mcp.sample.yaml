@@ -142,8 +142,10 @@ categories:
     - controller.credential_types_delete
 
   platform_configuration:
+    - controller.settings_list
     - controller.settings_read
     - controller.settings_partial_update
+    - gateway.settings_list
     - gateway.settings_getter
     - gateway.settings_update
     - controller.config_list
