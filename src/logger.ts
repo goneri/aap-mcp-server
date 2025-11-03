@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import { join } from "path";
+import { metricsService } from "./metrics.js";
 
 export interface LogEntry {
   timestamp: string;
@@ -12,6 +13,8 @@ export interface LogEntry {
 export interface Tool {
   name: string;
   service?: string;
+  category?: string;
+  [key: string]: any;
 }
 
 export class ToolLogger {
@@ -36,6 +39,9 @@ export class ToolLogger {
     payload: any,
     response: any,
     returnCode: number,
+    startTime?: number,
+    sessionId?: string,
+    userAgent?: string,
   ): Promise<void> {
     const logEntry: LogEntry = {
       timestamp: new Date().toISOString(),
@@ -51,6 +57,27 @@ export class ToolLogger {
       await fs.appendFile(logFile, JSON.stringify(logEntry) + "\n");
     } catch (error) {
       console.error(`Failed to write to log file ${logFile}:`, error);
+    }
+    // Record metrics
+    const duration = startTime ? (Date.now() - startTime) / 1000 : 0;
+    const status = returnCode >= 200 && returnCode < 400 ? "success" : "error";
+    const service = tool.service || "unknown";
+    const category = tool.category || "uncategorized";
+
+    // Prometheus metrics
+    metricsService.recordToolExecution(
+      tool.name,
+      service,
+      category,
+      status,
+      duration,
+    );
+    metricsService.recordApiCall(service, endpoint, "POST", returnCode);
+
+    if (status === "error") {
+      const errorType =
+        returnCode >= 400 && returnCode < 500 ? "client_error" : "server_error";
+      metricsService.recordToolError(tool.name, service, category, errorType);
     }
   }
 }

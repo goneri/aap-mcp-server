@@ -19,6 +19,7 @@ import { readFileSync, writeFileSync, promises as fs } from "fs";
 import { join } from "path";
 import * as yaml from "js-yaml";
 import { ToolLogger, type LogEntry } from "./logger.js";
+import { metricsService } from "./metrics.js";
 import {
   renderDashboard,
   renderToolsList,
@@ -57,6 +58,7 @@ interface AapMcpConfig {
   record_api_queries?: boolean;
   "ignore-certificate-errors"?: boolean;
   enable_ui?: boolean;
+  enable_metrics?: boolean;
   base_url?: string;
   services?: ServiceConfig[];
   categories: Record<string, string[]>;
@@ -256,6 +258,16 @@ const filterToolsByCategory = (
   return tools.filter((tool) => category.includes(tool.name));
 };
 
+// Find which category a tool belongs to (returns first match or "uncategorized")
+const getCategoryForTool = (toolName: string): string => {
+  for (const [categoryName, categoryTools] of Object.entries(allCategories)) {
+    if (categoryTools.includes(toolName)) {
+      return categoryName;
+    }
+  }
+  return "uncategorized";
+};
+
 // Generate dynamic color for category based on name
 const getCategoryColor = (categoryName: string): string => {
   const colors = [
@@ -420,6 +432,7 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
   // Get the session ID from the transport context
   const sessionId = extra?.sessionId;
+  const startTime = Date.now();
 
   // Get category override from transport if available
   const transport = sessionId ? transports[sessionId] : null;
@@ -460,6 +473,7 @@ server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
 
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const { name, arguments: args = {} } = request.params;
+  const startTime = Date.now();
 
   // Find the matching tool
   const tool = allTools.find((t) => t.name === name);
@@ -540,8 +554,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 
     // Log the tool access (only if recording is enabled)
     if (recordApiQueries && toolLogger) {
+      // Add category information to the tool for metrics
+      const toolWithCategory = {
+        ...tool,
+        category: getCategoryForTool(tool.name),
+      };
       await toolLogger.logToolAccess(
-        tool,
+        toolWithCategory,
         fullUrl,
         {
           method: tool.method.toUpperCase(),
@@ -549,6 +568,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
         },
         result,
         response.status,
+        startTime,
       );
     }
 
@@ -567,8 +587,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   } catch (error) {
     // Log the failed tool access (only if recording is enabled)
     if (recordApiQueries && toolLogger) {
+      // Add category information to the tool for metrics
+      const toolWithCategory = {
+        ...tool,
+        category: getCategoryForTool(tool.name),
+      };
       await toolLogger.logToolAccess(
-        tool,
+        toolWithCategory,
         fullUrl,
         {
           method: tool.method.toUpperCase(),
@@ -576,6 +601,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
         },
         { error: error instanceof Error ? error.message : String(error) },
         response?.status || 0,
+        startTime,
       );
     }
 
@@ -1376,6 +1402,27 @@ app.get("/api/v1/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+// Prometheus metrics endpoint (conditional based on config)
+const enableMetrics = getBooleanConfig(
+  "ENABLE_METRICS",
+  localConfig.enable_metrics,
+);
+if (enableMetrics) {
+  app.get("/metrics", async (req, res) => {
+    try {
+      res.set("Content-Type", metricsService.getContentType());
+      const metrics = await metricsService.getMetrics();
+      res.send(metrics);
+    } catch (error) {
+      console.error("Error generating metrics:", error);
+      res.status(500).send("Error generating metrics");
+    }
+  });
+  console.log(`Prometheus metrics: ENABLED`);
+} else {
+  console.log(`Prometheus metrics: DISABLED`);
+}
+
 async function main(): Promise<void> {
   // Initialize tools before starting server
   console.log("Loading OpenAPI specifications and generating tools...");
@@ -1397,6 +1444,11 @@ async function main(): Promise<void> {
     console.log(`AAP MCP Server running on port ${PORT}`);
     console.log(`Web UI available at: http://localhost:${PORT}`);
     console.log(`MCP endpoint available at: http://localhost:${PORT}/mcp`);
+    if (enableMetrics) {
+      console.log(
+        `Metrics endpoint available at: http://localhost:${PORT}/metrics`,
+      );
+    }
   });
 }
 
