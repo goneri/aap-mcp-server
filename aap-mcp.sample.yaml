@@ -21,6 +21,9 @@
 # If local_path is not specified, it defaults to the url value
 # If enabled is not specified, it defaults to true
 
+# Allow write operation (POST, DELETE and PATCH)
+# allow_write_operations: false
+
 services:
   - name: controller
     # url: "https://custom-controller.example.com/api/v2/schema/"
