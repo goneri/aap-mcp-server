@@ -59,6 +59,7 @@ interface AapMcpConfig {
   "ignore-certificate-errors"?: boolean;
   enable_ui?: boolean;
   enable_metrics?: boolean;
+  allow_write_operations?: boolean;
   base_url?: string;
   services?: ServiceConfig[];
   categories: Record<string, string[]>;
@@ -123,6 +124,19 @@ console.log(
 
 const enableUI = getBooleanConfig("ENABLE_UI", localConfig.enable_ui);
 console.log(`Web UI: ${enableUI ? "ENABLED" : "DISABLED"}`);
+
+const allowWriteOperations = getBooleanConfig(
+  "ALLOW_WRITE_OPERATIONS",
+  localConfig.allow_write_operations,
+);
+console.log(
+  `Write operations (POST/DELETE/PATCH): ${allowWriteOperations ? "ENABLED" : "DISABLED"}`,
+);
+
+// Initialize allowed operations list based on configuration
+const allowedOperations = allowWriteOperations
+  ? ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+  : ["GET", "HEAD", "OPTIONS"];
 
 // Get services configuration
 const servicesConfig = localConfig.services || [];
@@ -308,6 +322,14 @@ const generateTools = async (): Promise<AAPMcpToolDefinition[]> => {
       const filteredTools = tools.filter((tool) => {
         tool.service = spec.service; // Add service information to each tool
         tool.logs = tool.logs || []; // Ensure logs array is initialized
+        // Filter out operations not in allowedOperations list
+        if (!allowedOperations.includes(tool.method.toUpperCase())) {
+          tool.logs.push({
+            severity: "INFO",
+            msg: "operation disabled by configuration",
+          });
+          return false;
+        }
         const originDescription = tool.description;
         const result = spec.reformatFunc(tool);
         if (result !== false) {
@@ -1339,6 +1361,7 @@ if (enableUI) {
         allTools,
         allCategories,
         recordApiQueries,
+        allowWriteOperations,
       };
 
       // Use the view function to render the HTML

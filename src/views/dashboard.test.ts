@@ -56,6 +56,7 @@ describe("Dashboard View", () => {
       operator: ["tool3"],
     },
     recordApiQueries: true,
+    allowWriteOperations: true,
   };
 
   it("should render HTML dashboard", () => {
@@ -108,6 +109,7 @@ describe("Dashboard View", () => {
       allTools: [],
       allCategories: {},
       recordApiQueries: false,
+      allowWriteOperations: false,
     };
 
     const html = renderDashboard(emptyData);

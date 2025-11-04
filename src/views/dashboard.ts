@@ -6,10 +6,12 @@ interface DashboardData {
   allTools: AAPMcpToolDefinition[];
   allCategories: Record<string, string[]>;
   recordApiQueries: boolean;
+  allowWriteOperations: boolean;
 }
 
 export const renderDashboard = (data: DashboardData): string => {
-  const { allTools, allCategories, recordApiQueries } = data;
+  const { allTools, allCategories, recordApiQueries, allowWriteOperations } =
+    data;
 
   // Calculate summary statistics
   const totalSize = allTools.reduce((sum, tool) => sum + (tool.size || 0), 0);
@@ -324,9 +326,7 @@ export const renderDashboard = (data: DashboardData): string => {
                 <div class="summary-number">${Object.keys(serviceStats).length}</div>
             </div>
             <div class="summary-card">
-                <h3>Log Messages</h3>
-                <div class="summary-number">${Object.values(serviceStats).reduce((sum, service) => sum + service.logs.err + service.logs.warn + service.logs.info, 0)}</div>
-                <small>across all tools</small>
+                Write Operations: <div class="summary-number">${allowWriteOperations ? "ENABLED" : "DISABLED"}</div>
             </div>
         </div>
 
