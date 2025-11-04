@@ -48,15 +48,6 @@ export const renderLogs = (data: LogsData): string => {
     return "#6c757d"; // gray
   };
 
-  // Helper function to get status text
-  const getStatusText = (code: number) => {
-    if (code >= 200 && code < 300) return "Success";
-    if (code >= 300 && code < 400) return "Redirect";
-    if (code >= 400 && code < 500) return "Client Error";
-    if (code >= 500) return "Server Error";
-    return "Unknown";
-  };
-
   return `
 <!DOCTYPE html>
 <html lang="en">

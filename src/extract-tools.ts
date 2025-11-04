@@ -83,7 +83,7 @@ function titleCase(str: string): string {
   // Converts snake_case, kebab-case, or path/parts to TitleCase
   return str
     .toLowerCase()
-    .replace(/[-_\/](.)/g, (_, char) => char.toUpperCase()) // Handle separators
+    .replace(/[-_/](.)/g, (_, char) => char.toUpperCase()) // Handle separators
     .replace(/^{/, "") // Remove leading { from path params
     .replace(/}$/, "") // Remove trailing } from path params
     .replace(/^./, (char) => char.toUpperCase()); // Capitalize first letter
@@ -362,7 +362,7 @@ export function extractToolsFromApi(
       }
 
       // Generate a unique name for the tool
-      let originalBaseName =
+      const originalBaseName =
         operation.operationId || generateOperationId(method, path);
       if (!originalBaseName) continue;
 
@@ -374,7 +374,7 @@ export function extractToolsFromApi(
       while (usedNames.has(nameCandidate)) {
         nameCandidate = `${nameCandidate}_${counter++}`;
       }
-      if (originalBaseName != nameCandidate) {
+      if (originalBaseName !== nameCandidate) {
         logs.push({
           severity: "WARN",
           msg: `name was transformed from ${originalBaseName}`,
@@ -443,6 +443,7 @@ export function extractToolsFromApi(
         requestBodyContentType,
         securityRequirements,
         operationId: originalBaseName,
+        deprecated,
         logs: logs,
       } as AAPMcpToolDefinition);
     }

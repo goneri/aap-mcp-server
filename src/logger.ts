@@ -40,8 +40,8 @@ export class ToolLogger {
     response: any,
     returnCode: number,
     startTime?: number,
-    sessionId?: string,
-    userAgent?: string,
+    _sessionId?: string,
+    _userAgent?: string,
   ): Promise<void> {
     const logEntry: LogEntry = {
       timestamp: new Date().toISOString(),

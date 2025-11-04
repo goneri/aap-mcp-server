@@ -27,7 +27,7 @@ interface CategoryToolsData {
 export const renderCategoriesOverview = (
   data: CategoriesOverviewData,
 ): string => {
-  const { categories, allTools } = data;
+  const { categories } = data;
 
   return `
 <!DOCTYPE html>

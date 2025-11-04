@@ -167,7 +167,7 @@ export const reformatGatewayTool = (
   tool.description = tool.description?.trim().split("\n\n")[0];
   if (
     originalDescription &&
-    originalDescription.trim() != tool.description.trim()
+    originalDescription.trim() !== tool.description.trim()
   ) {
     tool.logs.push({ severity: "WARN", msg: "description was truncated" });
   }
@@ -205,7 +205,7 @@ export const reformatGalaxyTool = (
     /(api_galaxy_v3_|api_galaxy_|)(.+)/,
     "galaxy.$2",
   );
-  if (originalName != tool.name) {
+  if (originalName !== tool.name) {
     tool.logs.push({
       severity: "WARN",
       msg: `tool name rewritten from ${originalName}`,
@@ -233,7 +233,7 @@ export const reformatControllerTool = (
   tool.name = tool.name.replace(/api_(.+)/, "controller.$1");
   const originalDescription = tool.description;
   tool.description = tool.description?.trim().split("\n\n")[0];
-  if (originalDescription.trim() != tool.description.trim()) {
+  if (originalDescription.trim() !== tool.description.trim()) {
     tool.logs.push({ severity: "WARN", msg: "description was truncated" });
   }
   return tool;
