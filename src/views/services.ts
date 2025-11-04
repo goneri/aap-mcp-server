@@ -1,5 +1,4 @@
 import { AAPMcpToolDefinition } from "../openapi-loader.js";
-import { McpToolLogEntry } from "../extract-tools.js";
 import { getLogIcon } from "./utils.js";
 import { renderHeader, getHeaderStyles } from "../header.js";
 
@@ -178,7 +177,13 @@ export const renderServicesOverview = (data: ServicesOverviewData): string => {
 };
 
 export const renderServiceTools = (data: ServiceToolsData): string => {
-  const { serviceName, displayName, serviceTools, totalSize, methods } = data;
+  const {
+    serviceName: _serviceName,
+    displayName,
+    serviceTools,
+    totalSize,
+    methods,
+  } = data;
 
   const toolRows = serviceTools
     .map((tool) => {
