@@ -171,7 +171,7 @@ describe("ToolLogger", () => {
 
       mockMkdir.mockRejectedValue(new Error("Permission denied"));
 
-      const logger = new ToolLogger(mockLogDir);
+      const _logger = new ToolLogger(mockLogDir);
 
       // Wait for the async ensureLogDir to complete
       await new Promise((resolve) => setTimeout(resolve, 10));

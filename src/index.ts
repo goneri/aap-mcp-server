@@ -11,9 +11,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   isInitializeRequest,
-  Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import type { McpToolDefinition } from "openapi-mcp-generator";
 import { extractToolsFromApi } from "./extract-tools.js";
 import { readFileSync, writeFileSync, promises as fs } from "fs";
 import { join } from "path";
@@ -45,7 +43,6 @@ import {
 import {
   loadOpenApiSpecs,
   type AAPMcpToolDefinition,
-  type OpenApiSpecEntry,
   type ServiceConfig,
 } from "./openapi-loader.js";
 
@@ -311,7 +308,7 @@ const generateTools = async (): Promise<AAPMcpToolDefinition[]> => {
     const derefedDocument = await oas.deref();
     oas = new OASNormalize(derefedDocument);
 
-    let mspecification = await oas.convert();
+    const mspecification = await oas.convert();
     // Convert to bundled version for consistency
     const bundledSpec = await new OASNormalize(mspecification).bundle();
 
@@ -396,7 +393,7 @@ const getToolLogEntries = async (toolName: string): Promise<LogEntry[]> => {
       .split("\n")
       .filter((line) => line);
     return lines.map((line) => JSON.parse(line) as LogEntry);
-  } catch (error) {
+  } catch (_error) {
     // Log file doesn't exist or can't be read
     return [];
   }
@@ -454,7 +451,7 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
   // Get the session ID from the transport context
   const sessionId = extra?.sessionId;
-  const startTime = Date.now();
+  const _startTime = Date.now();
 
   // Get category override from transport if available
   const transport = sessionId ? transports[sessionId] : null;
@@ -495,7 +492,7 @@ server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
 
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const { name, arguments: args = {} } = request.params;
-  const startTime = Date.now();
+  const _startTime = Date.now();
 
   // Find the matching tool
   const tool = allTools.find((t) => t.name === name);
@@ -590,7 +587,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
         },
         result,
         response.status,
-        startTime,
+        _startTime,
       );
     }
 
@@ -623,7 +620,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
         },
         { error: error instanceof Error ? error.message : String(error) },
         response?.status || 0,
-        startTime,
+        _startTime,
       );
     }
 
@@ -760,10 +757,10 @@ const mcpPostHandler = async (
 const mcpGetHandler = async (
   req: express.Request,
   res: express.Response,
-  categoryOverride?: string,
+  _categoryOverride?: string,
 ) => {
   const sessionId = req.headers["mcp-session-id"] as string;
-  const authHeader = req.headers["authorization"] as string;
+  const _authHeader = req.headers["authorization"] as string;
 
   if (!sessionId || !transports[sessionId]) {
     res.status(400).send("Invalid or missing session ID");
@@ -787,7 +784,7 @@ const mcpGetHandler = async (
 const mcpDeleteHandler = async (
   req: express.Request,
   res: express.Response,
-  categoryOverride?: string,
+  _categoryOverride?: string,
 ) => {
   const sessionId = req.headers["mcp-session-id"] as string;
 
