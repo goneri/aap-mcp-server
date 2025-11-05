@@ -327,12 +327,7 @@ const generateTools = async (): Promise<AAPMcpToolDefinition[]> => {
           });
           return false;
         }
-        const originDescription = tool.description;
-        const result = spec.reformatFunc(tool);
-        if (result !== false) {
-          result.originalDescription = originDescription;
-        }
-        return result !== false;
+        return spec.reformatFunc(tool);
       });
       rawToolList = rawToolList.concat(filteredTools);
     } catch (error) {

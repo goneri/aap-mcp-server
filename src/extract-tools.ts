@@ -19,6 +19,25 @@ export interface AAPMcpToolDefinition extends McpToolDefinition {
   size?: number;
 }
 
+export class AAPOperationObject implements OpenAPIV3.OperationObject {
+  public "x-ai-description": string;
+  public deprecated: boolean;
+  public security?: OpenAPIV3.SecurityRequirementObject[];
+  public summary?: string;
+  public description?: string;
+  public operationId?: string;
+  public requestBody?: OpenAPIV3.RequestBodyObject;
+  public parameters?: OpenAPIV3.ParameterObject[];
+  public responses: OpenAPIV3.ResponsesObject;
+
+  constructor(rawOperation: any) {
+    Object.assign(this, rawOperation);
+    this.deprecated = rawOperation.deprecated || false;
+    this.responses = rawOperation.responses || {};
+    this["x-ai-description"] = rawOperation["x-ai-description"] || "";
+  }
+}
+
 /**
  * Normalize a value to boolean if it looks like a boolean; otherwise undefined.
  */
@@ -40,7 +59,7 @@ function normalizeBoolean(value: any): boolean | undefined {
 function shouldIncludeOperationForMcp(
   api: OpenAPIV3.Document,
   pathItem: OpenAPIV3.PathItemObject,
-  operation: OpenAPIV3.OperationObject,
+  operation: AAPOperationObject,
   defaultInclude = true,
 ): boolean {
   const opRaw = (operation as any)["x-mcp"];
@@ -193,7 +212,7 @@ export function mapOpenApiSchemaToJsonSchema(
  * Generates input schema and extracts parameter details from an operation
  */
 export function generateInputSchemaAndDetails(
-  operation: OpenAPIV3.OperationObject,
+  operation: AAPOperationObject,
   pathParameters?: (OpenAPIV3.ParameterObject | OpenAPIV3.ReferenceObject)[],
 ): {
   inputSchema: JSONSchema7 | boolean;
@@ -309,8 +328,8 @@ export function generateInputSchemaAndDetails(
 export function extractToolsFromApi(
   api: OpenAPIV3.Document,
   defaultInclude = true,
-): McpToolDefinition[] {
-  const tools: McpToolDefinition[] = [];
+): AAPMcpToolDefinition[] {
+  const tools: AAPMcpToolDefinition[] = [];
   const usedNames = new Set<string>();
   const globalSecurity = api.security || [];
 
@@ -320,9 +339,9 @@ export function extractToolsFromApi(
     if (!pathItem) continue;
 
     for (const method of Object.values(OpenAPIV3.HttpMethods)) {
-      const operation = pathItem[method];
+      if (!pathItem[method]) continue;
+      const operation = new AAPOperationObject(pathItem[method]);
       const logs: McpToolLogEntry[] = [];
-      if (!operation) continue;
 
       // Apply x-mcp filtering, precedence: operation > path > root
       try {
@@ -392,11 +411,23 @@ export function extractToolsFromApi(
         logs.push({ severity: "INFO", msg: "no summary in OpenAPI schema" });
       }
 
+      if (operation["x-ai-description"].length === 0) {
+        logs.push({ severity: "ERR", msg: "no `x-ai-description` field" });
+      }
+      if (operation["x-ai-description"].length > 300) {
+        logs.push({
+          severity: "ERR",
+          msg: "x-ai-description is too long (>300 chars)",
+        });
+      }
+
       // Get or create a description
       const description =
-        operation.description ||
+        operation["x-ai-description"] ||
         operation.summary ||
-        `Executes ${method.toUpperCase()} ${path}`;
+        (operation.description
+          ? operation.description?.trim().split("\n\n")[0]
+          : "");
 
       // Generate input schema and extract parameters
       const { inputSchema, parameters, requestBodyContentType } =
@@ -429,8 +460,6 @@ export function extractToolsFromApi(
           ? globalSecurity
           : operation.security || globalSecurity;
 
-      const deprecated = operation.deprecated || false;
-
       // Create the tool definition
       tools.push({
         name: nameCandidate,
@@ -443,9 +472,9 @@ export function extractToolsFromApi(
         requestBodyContentType,
         securityRequirements,
         operationId: originalBaseName,
-        deprecated,
+        deprecated: operation.deprecated,
         logs: logs,
-      } as AAPMcpToolDefinition);
+      });
     }
   }
   return tools;

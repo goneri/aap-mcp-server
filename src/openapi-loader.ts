@@ -163,14 +163,6 @@ export const reformatGatewayTool = (
   tool: AAPMcpToolDefinition,
 ): AAPMcpToolDefinition | false => {
   tool.name = "gateway." + tool.name;
-  const originalDescription = tool.description;
-  tool.description = tool.description?.trim().split("\n\n")[0];
-  if (
-    originalDescription &&
-    originalDescription.trim() !== tool.description.trim()
-  ) {
-    tool.logs.push({ severity: "WARN", msg: "description was truncated" });
-  }
   if (!tool.deprecated && tool.description?.includes("Legacy")) {
     tool.logs.push({
       severity: "WARN",
@@ -231,11 +223,6 @@ export const reformatControllerTool = (
     "/api/controller/v2",
   );
   tool.name = tool.name.replace(/api_(.+)/, "controller.$1");
-  const originalDescription = tool.description;
-  tool.description = tool.description?.trim().split("\n\n")[0];
-  if (originalDescription.trim() !== tool.description.trim()) {
-    tool.logs.push({ severity: "WARN", msg: "description was truncated" });
-  }
   return tool;
 };
 
