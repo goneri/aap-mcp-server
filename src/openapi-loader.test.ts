@@ -107,7 +107,7 @@ describe("OpenAPI Loader", () => {
   });
 
   describe("reformatGatewayTool", () => {
-    it("should add gateway prefix and trim description", () => {
+    it("should add gateway prefix without modifying description", () => {
       const mockTool = createMockTool({
         description: "Test tool description\n\nExtra details",
       });
@@ -117,7 +117,9 @@ describe("OpenAPI Loader", () => {
       expect(result).toBeTruthy();
       if (result) {
         expect(result.name).toBe("gateway.test-tool");
-        expect(result.description).toBe("Test tool description");
+        expect(result.description).toBe(
+          "Test tool description\n\nExtra details",
+        );
       }
     });
 
@@ -148,6 +150,44 @@ describe("OpenAPI Loader", () => {
       expect(result).toBeTruthy();
       if (result) {
         expect(result.name).toBe("gateway.test-tool");
+        expect(result.description).toBe(undefined);
+      }
+    });
+
+    it("should preserve very long descriptions without truncation", () => {
+      const veryLongDescription =
+        "A".repeat(500) + "\n\nExtra details with multiple paragraphs";
+      const mockTool = createMockTool({
+        description: veryLongDescription,
+      });
+
+      const result = reformatGatewayTool(mockTool);
+
+      expect(result).toBeTruthy();
+      if (result) {
+        expect(result.name).toBe("gateway.test-tool");
+        expect(result.description).toBe(veryLongDescription);
+        // Verify no truncation logs are added
+        expect(result.logs).not.toContainEqual({
+          severity: "ERR",
+          msg: "description was truncated",
+        });
+      }
+    });
+
+    it("should preserve descriptions with special characters", () => {
+      const specialDescription =
+        "Test with émojis 🚀 and spëcial chars & symbols!";
+      const mockTool = createMockTool({
+        description: specialDescription,
+      });
+
+      const result = reformatGatewayTool(mockTool);
+
+      expect(result).toBeTruthy();
+      if (result) {
+        expect(result.name).toBe("gateway.test-tool");
+        expect(result.description).toBe(specialDescription);
       }
     });
   });
@@ -204,7 +244,7 @@ describe("OpenAPI Loader", () => {
 
       expect(result.name).toBe("controller.jobs_list");
       expect(result.pathTemplate).toBe("/api/controller/v2/jobs/");
-      expect(result.description).toBe("List jobs");
+      expect(result.description).toBe("List jobs\n\nExtra details");
     });
 
     it("should handle tools without path template", () => {
@@ -216,6 +256,57 @@ describe("OpenAPI Loader", () => {
       const result = reformatControllerTool(mockTool);
 
       expect(result.name).toBe("controller.test_tool");
+    });
+
+    it("should preserve very long descriptions without truncation", () => {
+      const veryLongDescription =
+        "B".repeat(600) + "\n\nExtra details with multiple lines";
+      const mockTool = createMockTool({
+        name: "api_complex_operation",
+        pathTemplate: "/api/v2/complex/",
+        description: veryLongDescription,
+      });
+
+      const result = reformatControllerTool(mockTool);
+
+      expect(result.name).toBe("controller.complex_operation");
+      expect(result.pathTemplate).toBe("/api/controller/v2/complex/");
+      expect(result.description).toBe(veryLongDescription);
+      // Verify no truncation logs are added
+      expect(result.logs).not.toContainEqual({
+        severity: "ERR",
+        msg: "description was truncated",
+      });
+    });
+
+    it("should handle tools with undefined description", () => {
+      const mockTool = createMockTool({
+        name: "api_undefined_desc",
+        pathTemplate: "/api/v2/test/",
+        description: undefined,
+      });
+
+      const result = reformatControllerTool(mockTool);
+
+      expect(result.name).toBe("controller.undefined_desc");
+      expect(result.pathTemplate).toBe("/api/controller/v2/test/");
+      expect(result.description).toBe(undefined);
+    });
+
+    it("should preserve multiline descriptions with newlines", () => {
+      const multilineDescription =
+        "First line\nSecond line\n\nThird paragraph\nFourth line";
+      const mockTool = createMockTool({
+        name: "api_multiline_test",
+        pathTemplate: "/api/v2/multiline/",
+        description: multilineDescription,
+      });
+
+      const result = reformatControllerTool(mockTool);
+
+      expect(result.name).toBe("controller.multiline_test");
+      expect(result.pathTemplate).toBe("/api/controller/v2/multiline/");
+      expect(result.description).toBe(multilineDescription);
     });
   });
 
