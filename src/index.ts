@@ -89,9 +89,6 @@ const CONFIG = {
 // Log entries size limit for /logs endpoint
 const logEntriesSizeLimit = 10000;
 
-// Log configuration settings
-console.log(`BASE_URL: ${CONFIG.BASE_URL}`);
-
 // Helper function to get boolean configuration with environment variable override
 const getBooleanConfig = (
   envVar: string,
@@ -107,27 +104,17 @@ const recordApiQueries = getBooleanConfig(
   "RECORD_API_QUERIES",
   localConfig.record_api_queries,
 );
-console.log(
-  `API query recording: ${recordApiQueries ? "ENABLED" : "DISABLED"}`,
-);
 
 const ignoreCertificateErrors = getBooleanConfig(
   "IGNORE_CERTIFICATE_ERRORS",
   localConfig["ignore-certificate-errors"],
 );
-console.log(
-  `Certificate validation: ${ignoreCertificateErrors ? "DISABLED" : "ENABLED"}`,
-);
 
 const enableUI = getBooleanConfig("ENABLE_UI", localConfig.enable_ui);
-console.log(`Web UI: ${enableUI ? "ENABLED" : "DISABLED"}`);
 
 const allowWriteOperations = getBooleanConfig(
   "ALLOW_WRITE_OPERATIONS",
   localConfig.allow_write_operations,
-);
-console.log(
-  `Write operations (POST/DELETE/PATCH): ${allowWriteOperations ? "ENABLED" : "DISABLED"}`,
 );
 
 // Initialize allowed operations list based on configuration
@@ -137,15 +124,17 @@ const allowedOperations = allowWriteOperations
 
 // Get services configuration
 const servicesConfig = localConfig.services || [];
-console.log(
-  `Services configured: ${servicesConfig.length > 0 ? servicesConfig.map((s) => s.name).join(", ") : "none"}`,
-);
+
+// Helper function to get timestamps
+const getTimestamp = (): string => {
+  return new Date().toISOString().split(".")[0] + "Z";
+};
 
 // Configure HTTPS certificate validation globally
 if (ignoreCertificateErrors) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
   console.warn(
-    "WARNING: HTTPS certificate validation is disabled. This should only be used in development/testing environments.",
+    `${getTimestamp()} WARNING: HTTPS certificate validation is disabled. This should only be used in development/testing environments.`,
   );
 }
 
@@ -173,10 +162,12 @@ const getBearerTokenForSession = (sessionId: string | undefined): string => {
   if (sessionId && sessionData[sessionId]) {
     bearerToken = sessionData[sessionId].token;
     console.log(
-      `Using session-specific Bearer token for session: ${sessionId}`,
+      `${getTimestamp()} Using session-specific Bearer token for session: ${sessionId}`,
     );
   } else {
-    console.log("Using fallback Bearer token from environment variable");
+    console.log(
+      `${getTimestamp()} Using fallback Bearer token from environment variable`,
+    );
   }
 
   if (!bearerToken) {
@@ -222,7 +213,7 @@ const validateTokenAndGetPermissions = async (
       is_platform_auditor: userInfo.is_platform_auditor || false,
     };
   } catch (error) {
-    console.error("Token validation failed:", error);
+    console.error(`${getTimestamp()} Token validation failed:`, error);
     throw new Error(
       `Token validation failed: ${error instanceof Error ? error.message : String(error)}`,
     );
@@ -240,7 +231,7 @@ const storeSessionData = (
     is_platform_auditor: permissions.is_platform_auditor,
   };
   console.log(
-    `Stored session data for ${sessionId}: superuser=${permissions.is_superuser}, auditor=${permissions.is_platform_auditor}`,
+    `${getTimestamp()} Stored session data for ${sessionId}: superuser=${permissions.is_superuser}, auditor=${permissions.is_platform_auditor}`,
   );
 };
 
@@ -252,7 +243,9 @@ const getUserCategory = (category?: string): Category => {
     if (allCategories[categoryName]) {
       return allCategories[categoryName];
     } else {
-      console.warn(`Unknown category: ${category}, returning empty category`);
+      console.warn(
+        `${getTimestamp()} Unknown category: ${category}, returning empty category`,
+      );
       return [];
     }
   }
@@ -303,7 +296,7 @@ const generateTools = async (): Promise<AAPMcpToolDefinition[]> => {
   let rawToolList: AAPMcpToolDefinition[] = [];
 
   for (const spec of openApiSpecs) {
-    console.log(`Loading ${spec.service}`);
+    console.log(`${getTimestamp()}   Loading ${spec.service}...`);
     let oas = new OASNormalize(spec.spec);
     const derefedDocument = await oas.deref();
     oas = new OASNormalize(derefedDocument);
@@ -336,7 +329,10 @@ const generateTools = async (): Promise<AAPMcpToolDefinition[]> => {
       });
       rawToolList = rawToolList.concat(filteredTools);
     } catch (error) {
-      console.error("Error generating tools from OpenAPI spec:", error);
+      console.error(
+        `${getTimestamp()} Error generating tools from OpenAPI spec:`,
+        error,
+      );
     }
   }
 
@@ -371,7 +367,7 @@ const generateTools = async (): Promise<AAPMcpToolDefinition[]> => {
   if (process.env.NODE_ENV === "development") {
     writeFileSync("tool_list.csv", csvContent, "utf8");
     console.log(
-      `Tool list saved to tool_list.csv (${toolsWithSize.length} tools)`,
+      `${getTimestamp()} Tool list saved to tool_list.csv (${toolsWithSize.length} tools)`,
     );
   }
 
@@ -431,7 +427,7 @@ const getAllLogEntries = async (): Promise<
 
     return allEntries;
   } catch (error) {
-    console.error("Error reading log files:", error);
+    console.error(`${getTimestamp()} Error reading log files:`, error);
     return [];
   }
 };
@@ -478,7 +474,7 @@ server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
     ? ` (override: ${categoryOverride})`
     : "";
   console.log(
-    `Returning ${filteredTools.length} tools for ${categoryType} category${overrideInfo} (session: ${sessionId || "none"})`,
+    `${getTimestamp()} Returning ${filteredTools.length} tools for ${categoryType} category${overrideInfo}`,
   );
 
   return {
@@ -494,11 +490,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const { name, arguments: args = {} } = request.params;
   const _startTime = Date.now();
 
+  // Generate correlation ID for this request
+  const correlationId = randomUUID().substring(0, 8);
+
   // Find the matching tool
   const tool = allTools.find((t) => t.name === name);
   if (!tool) {
     throw new Error(`Unknown tool: ${name}`);
   }
+
+  // Get category for this tool
+  const toolCategory = getCategoryForTool(tool.name);
 
   // Get the session ID from the transport context
   const sessionId = extra?.sessionId;
@@ -561,7 +563,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 
     // Make HTTP request
     fullUrl = `${CONFIG.BASE_URL}${url}`;
-    console.log(`Calling: ${fullUrl}`);
+    console.log(
+      `${getTimestamp()} [req:${correlationId}|category:${toolCategory}] ${tool.name} → ${tool.method.toUpperCase()} ${fullUrl}`,
+    );
     response = await fetch(fullUrl, requestOptions);
 
     const contentType = response.headers.get("content-type");
@@ -571,12 +575,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       result = await response.text();
     }
 
+    // Log response with timing
+    const duration = ((Date.now() - _startTime) / 1000).toFixed(2);
+    console.log(
+      `${getTimestamp()} [req:${correlationId}|category:${toolCategory}] ${tool.name} → ${response.status} ${response.statusText} (${duration}s)`,
+    );
+
     // Log the tool access (only if recording is enabled)
     if (recordApiQueries && toolLogger) {
       // Add category information to the tool for metrics
       const toolWithCategory = {
         ...tool,
-        category: getCategoryForTool(tool.name),
+        category: toolCategory,
       };
       await toolLogger.logToolAccess(
         toolWithCategory,
@@ -604,12 +614,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       ],
     };
   } catch (error) {
+    // Log the error with timing
+    const duration = ((Date.now() - _startTime) / 1000).toFixed(2);
+    const statusInfo = response
+      ? `${response.status} ${response.statusText}`
+      : "No Response";
+    console.error(
+      `${getTimestamp()} [req:${correlationId}|category:${toolCategory}] ${tool.name} → ${statusInfo} (${duration}s) - ERROR: ${error instanceof Error ? error.message : String(error)}`,
+    );
+
     // Log the failed tool access (only if recording is enabled)
     if (recordApiQueries && toolLogger) {
       // Add category information to the tool for metrics
       const toolWithCategory = {
         ...tool,
-        category: getCategoryForTool(tool.name),
+        category: toolCategory,
       };
       await toolLogger.logToolAccess(
         toolWithCategory,
@@ -655,9 +674,9 @@ const mcpPostHandler = async (
   const authHeader = req.headers["authorization"] as string;
 
   if (sessionId) {
-    console.log(`Received MCP request for session: ${sessionId}`);
+    console.log(`${getTimestamp()} Received MCP request`);
   } else {
-    console.log("Request body:", req.body);
+    console.log(`${getTimestamp()} Request body:`, req.body);
   }
 
   try {
@@ -672,7 +691,7 @@ const mcpPostHandler = async (
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: async (sessionId: string) => {
           console.log(
-            `Session initialized with ID: ${sessionId}${categoryOverride ? ` with category override: ${categoryOverride}` : ""}`,
+            `${getTimestamp()} Session initialized${categoryOverride ? ` with category override: ${categoryOverride}` : ""}`,
           );
           transports[sessionId] = transport;
 
@@ -691,14 +710,14 @@ const mcpPostHandler = async (
               storeSessionData(sessionId, token, permissions);
             } catch (error) {
               console.error(
-                `Failed to validate token for session ${sessionId}:`,
+                `${getTimestamp()} Failed to validate token:`,
                 error,
               );
               // Token validation failed, we cannot create the session without valid token
               throw error;
             }
           } else {
-            console.warn(`No bearer token provided for session ${sessionId}`);
+            console.warn(`${getTimestamp()} No bearer token provided`);
           }
         },
       });
@@ -708,13 +727,13 @@ const mcpPostHandler = async (
         const sid = transport.sessionId;
         if (sid && transports[sid]) {
           console.log(
-            `Transport closed for session ${sid}, removing from transports map`,
+            `${getTimestamp()} Transport closed, removing from transports map`,
           );
           delete transports[sid];
           // Clean up session data
           if (sessionData[sid]) {
             delete sessionData[sid];
-            console.log(`Removed session data for session: ${sid}`);
+            console.log(`${getTimestamp()} Removed session data`);
           }
         }
       };
@@ -739,7 +758,7 @@ const mcpPostHandler = async (
     // Handle the request with existing transport
     await transport.handleRequest(req, res, req.body);
   } catch (error) {
-    console.error("Error handling MCP request:", error);
+    console.error(`${getTimestamp()} Error handling MCP request:`, error);
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: "2.0",
@@ -771,9 +790,11 @@ const mcpGetHandler = async (
 
   const lastEventId = req.headers["last-event-id"];
   if (lastEventId) {
-    console.log(`Client reconnecting with Last-Event-ID: ${lastEventId}`);
+    console.log(
+      `${getTimestamp()} Client reconnecting with Last-Event-ID: ${lastEventId}`,
+    );
   } else {
-    console.log(`Establishing a new stream for session ${sessionId}`);
+    console.log(`${getTimestamp()} Establishing new SSE stream`);
   }
 
   const transport = transports[sessionId];
@@ -793,7 +814,7 @@ const mcpDeleteHandler = async (
     return;
   }
 
-  console.log(`Received session termination request for session ${sessionId}`);
+  console.log(`${getTimestamp()} Received session termination request`);
 
   try {
     const transport = transports[sessionId];
@@ -802,10 +823,15 @@ const mcpDeleteHandler = async (
     // Clean up session data when session is terminated
     if (sessionData[sessionId]) {
       delete sessionData[sessionId];
-      console.log(`Removed session data for terminated session: ${sessionId}`);
+      console.log(
+        `${getTimestamp()} Removed session data for terminated session`,
+      );
     }
   } catch (error) {
-    console.error("Error handling session termination:", error);
+    console.error(
+      `${getTimestamp()} Error handling session termination:`,
+      error,
+    );
     if (!res.headersSent) {
       res.status(500).send("Error processing session termination");
     }
@@ -845,7 +871,10 @@ if (enableUI) {
       res.setHeader("Content-Type", "text/html");
       res.send(htmlContent);
     } catch (error) {
-      console.error("Error generating HTML tool list:", error);
+      console.error(
+        `${getTimestamp()} Error generating HTML tool list:`,
+        error,
+      );
       res.status(500).json({
         error: "Failed to generate tool list HTML",
         message: error instanceof Error ? error.message : String(error),
@@ -926,7 +955,7 @@ if (enableUI) {
       res.setHeader("Content-Type", "text/html");
       res.send(htmlContent);
     } catch (error) {
-      console.error("Error generating tool details:", error);
+      console.error(`${getTimestamp()} Error generating tool details:`, error);
       res.status(500).json({
         error: "Failed to generate tool details",
         message: error instanceof Error ? error.message : String(error),
@@ -955,7 +984,7 @@ if (enableUI) {
       );
       res.send(csvContent);
     } catch (error) {
-      console.error("Error generating CSV tool list:", error);
+      console.error(`${getTimestamp()} Error generating CSV tool list:`, error);
       res.status(500).json({
         error: "Failed to generate tool list CSV",
         message: error instanceof Error ? error.message : String(error),
@@ -1002,7 +1031,10 @@ if (enableUI) {
       res.setHeader("Content-Type", "text/html");
       res.send(htmlContent);
     } catch (error) {
-      console.error("Error generating category overview:", error);
+      console.error(
+        `${getTimestamp()} Error generating category overview:`,
+        error,
+      );
       res.status(500).json({
         error: "Failed to generate category overview",
         message: error instanceof Error ? error.message : String(error),
@@ -1052,7 +1084,10 @@ if (enableUI) {
       res.setHeader("Content-Type", "text/html");
       res.send(htmlContent);
     } catch (error) {
-      console.error("Error generating category tool list:", error);
+      console.error(
+        `${getTimestamp()} Error generating category tool list:`,
+        error,
+      );
       res.status(500).json({
         error: "Failed to generate category tool list",
         message: error instanceof Error ? error.message : String(error),
@@ -1161,7 +1196,7 @@ if (enableUI) {
       res.setHeader("Content-Type", "text/html");
       res.send(htmlContent);
     } catch (error) {
-      console.error("Error generating logs overview:", error);
+      console.error(`${getTimestamp()} Error generating logs overview:`, error);
       res.status(500).json({
         error: "Failed to generate logs overview",
         message: error instanceof Error ? error.message : String(error),
@@ -1213,7 +1248,10 @@ if (enableUI) {
       res.setHeader("Content-Type", "text/html");
       res.send(htmlContent);
     } catch (error) {
-      console.error("Error generating services overview:", error);
+      console.error(
+        `${getTimestamp()} Error generating services overview:`,
+        error,
+      );
       res.status(500).json({
         error: "Failed to generate services overview",
         message: error instanceof Error ? error.message : String(error),
@@ -1260,7 +1298,10 @@ if (enableUI) {
       res.setHeader("Content-Type", "text/html");
       res.send(htmlContent);
     } catch (error) {
-      console.error("Error generating service tools list:", error);
+      console.error(
+        `${getTimestamp()} Error generating service tools list:`,
+        error,
+      );
       res.status(500).json({
         error: "Failed to generate service tools list",
         message: error instanceof Error ? error.message : String(error),
@@ -1342,7 +1383,10 @@ if (enableUI) {
       res.setHeader("Content-Type", "text/html");
       res.send(htmlContent);
     } catch (error) {
-      console.error("Error generating endpoints overview:", error);
+      console.error(
+        `${getTimestamp()} Error generating endpoints overview:`,
+        error,
+      );
       res.status(500).json({
         error: "Failed to generate endpoints overview",
         message: error instanceof Error ? error.message : String(error),
@@ -1367,7 +1411,7 @@ if (enableUI) {
       res.setHeader("Content-Type", "text/html");
       res.send(htmlContent);
     } catch (error) {
-      console.error("Error generating dashboard:", error);
+      console.error(`${getTimestamp()} Error generating dashboard:`, error);
       res.status(500).json({
         error: "Failed to generate dashboard",
         message: error instanceof Error ? error.message : String(error),
@@ -1383,37 +1427,49 @@ app.delete("/mcp", (req, res) => mcpDeleteHandler(req, res));
 
 app.post("/:category/mcp", (req, res) => {
   const category = req.params.category;
-  console.log(`Category-specific POST request for category: ${category}`);
+  console.log(
+    `${getTimestamp()} Category-specific POST request for category: ${category}`,
+  );
   return mcpPostHandler(req, res, category);
 });
 
 app.get("/:category/mcp", (req, res) => {
   const category = req.params.category;
-  console.log(`Category-specific GET request for category: ${category}`);
+  console.log(
+    `${getTimestamp()} Category-specific GET request for category: ${category}`,
+  );
   return mcpGetHandler(req, res, category);
 });
 
 app.delete("/:category/mcp", (req, res) => {
   const category = req.params.category;
-  console.log(`Category-specific DELETE request for category: ${category}`);
+  console.log(
+    `${getTimestamp()} Category-specific DELETE request for category: ${category}`,
+  );
   return mcpDeleteHandler(req, res, category);
 });
 
 app.post("/mcp/:category", (req, res) => {
   const category = req.params.category;
-  console.log(`Category-specific POST request for category: ${category}`);
+  console.log(
+    `${getTimestamp()} Category-specific POST request for category: ${category}`,
+  );
   return mcpPostHandler(req, res, category);
 });
 
 app.get("/mcp/:category", (req, res) => {
   const category = req.params.category;
-  console.log(`Category-specific GET request for category: ${category}`);
+  console.log(
+    `${getTimestamp()} Category-specific GET request for category: ${category}`,
+  );
   return mcpGetHandler(req, res, category);
 });
 
 app.delete("/mcp/:category", (req, res) => {
   const category = req.params.category;
-  console.log(`Category-specific DELETE request for category: ${category}`);
+  console.log(
+    `${getTimestamp()} Category-specific DELETE request for category: ${category}`,
+  );
   return mcpDeleteHandler(req, res, category);
 });
 
@@ -1434,18 +1490,39 @@ if (enableMetrics) {
       const metrics = await metricsService.getMetrics();
       res.send(metrics);
     } catch (error) {
-      console.error("Error generating metrics:", error);
+      console.error(`${getTimestamp()} Error generating metrics:`, error);
       res.status(500).send("Error generating metrics");
     }
   });
-  console.log(`Prometheus metrics: ENABLED`);
-} else {
-  console.log(`Prometheus metrics: DISABLED`);
 }
 
 async function main(): Promise<void> {
+  // Print startup banner
+  console.log("");
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("           AAP MCP Server Starting");
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("");
+  console.log("Configuration:");
+  console.log(`  Base URL: ${CONFIG.BASE_URL}`);
+  console.log(
+    `  Services: ${servicesConfig.length > 0 ? servicesConfig.map((s) => s.name).join(", ") : "none"}`,
+  );
+  console.log(`  Categories: ${Object.keys(allCategories).length} enabled`);
+  console.log(
+    `  Write operations: ${allowWriteOperations ? "ENABLED" : "DISABLED"}`,
+  );
+  console.log(`  API recording: ${recordApiQueries ? "ENABLED" : "DISABLED"}`);
+  console.log(
+    `  Certificate validation: ${ignoreCertificateErrors ? "DISABLED" : "ENABLED"}`,
+  );
+  console.log(`  Web UI: ${enableUI ? "ENABLED" : "DISABLED"}`);
+  console.log(`  Metrics: ${enableMetrics ? "ENABLED" : "DISABLED"}`);
+  console.log("");
+  console.log("───────────────────────────────────────────────────────────");
+
   // Initialize tools before starting server
-  console.log("Loading OpenAPI specifications and generating tools...");
+  console.log("Loading OpenAPI specifications...");
   allTools = await generateTools();
   allTools.forEach((tool) => {
     if (tool.deprecated)
@@ -1457,29 +1534,49 @@ async function main(): Promise<void> {
     }
   });
 
-  console.log(`Successfully loaded ${allTools.length} tools`);
+  // Count tools by service
+  const toolsByService: Record<string, number> = {};
+  allTools.forEach((tool) => {
+    const service = tool.service || "unknown";
+    toolsByService[service] = (toolsByService[service] || 0) + 1;
+  });
+
+  console.log("");
+  for (const [service, count] of Object.entries(toolsByService)) {
+    console.log(`  ✓ ${service}: ${count} tools`);
+  }
+  console.log("");
+  console.log(`Total tools loaded: ${allTools.length}`);
+  console.log("");
+  console.log("═══════════════════════════════════════════════════════════");
+
   const PORT = process.env.MCP_PORT || 3000;
 
   app.listen(PORT, () => {
-    console.log(`AAP MCP Server running on port ${PORT}`);
-    console.log(`Web UI available at: http://localhost:${PORT}`);
-    console.log(`MCP endpoint available at: http://localhost:${PORT}/mcp`);
-    if (enableMetrics) {
-      console.log(
-        `Metrics endpoint available at: http://localhost:${PORT}/metrics`,
-      );
+    console.log(`Server ready on port ${PORT}`);
+    console.log("");
+    console.log("Available endpoints:");
+    console.log(`  • MCP endpoint: http://localhost:${PORT}/mcp`);
+    if (enableUI) {
+      console.log(`  • Web UI: http://localhost:${PORT}`);
     }
+    if (enableMetrics) {
+      console.log(`  • Metrics: http://localhost:${PORT}/metrics`);
+    }
+    console.log("");
+    console.log("═══════════════════════════════════════════════════════════");
+    console.log("");
   });
 }
 
 // Graceful shutdown
 process.on("SIGINT", async () => {
-  console.log("Shutting down server...");
+  console.log(`${getTimestamp()} Shutting down server...`);
 
   // Close all active transports
   for (const sessionId in transports) {
     try {
-      console.log(`Closing transport for session ${sessionId}`);
+      console.log(`${getTimestamp()} Closing transport during shutdown`);
       await transports[sessionId].close();
       delete transports[sessionId];
       // Clean up session data
@@ -1487,15 +1584,15 @@ process.on("SIGINT", async () => {
         delete sessionData[sessionId];
       }
     } catch (error) {
-      console.error(`Error closing transport for session ${sessionId}:`, error);
+      console.error(`${getTimestamp()} Error closing transport:`, error);
     }
   }
 
-  console.log("Server shutdown complete");
+  console.log(`${getTimestamp()} Server shutdown complete`);
   process.exit(0);
 });
 
 main().catch((error) => {
-  console.error("Server error:", error);
+  console.error(`${getTimestamp()} Server error:`, error);
   process.exit(1);
 });
