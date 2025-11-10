@@ -41,7 +41,7 @@ export class AAPOperationObject implements OpenAPIV3.OperationObject {
 /**
  * Normalize a value to boolean if it looks like a boolean; otherwise undefined.
  */
-function normalizeBoolean(value: any): boolean | undefined {
+export function normalizeBoolean(value: any): boolean | undefined {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
@@ -56,7 +56,7 @@ function normalizeBoolean(value: any): boolean | undefined {
  * Determine if an operation should be included in MCP generation based on x-mcp.
  * Precedence: operation > path > root; uses provided default when all undefined.
  */
-function shouldIncludeOperationForMcp(
+export function shouldIncludeOperationForMcp(
   api: OpenAPIV3.Document,
   pathItem: OpenAPIV3.PathItemObject,
   operation: AAPOperationObject,

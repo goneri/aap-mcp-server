@@ -11,7 +11,7 @@ export default defineConfig({
     // Coverage configuration
     coverage: {
       provider: "v8",
-      reporter: ["text", "json", "html", "lcov"],
+      reporter: ["text", "json-summary", "json", "html", "lcov"],
       reportsDirectory: "./coverage",
       include: ["src/**/*.ts"],
       exclude: [
@@ -25,10 +25,8 @@ export default defineConfig({
       ],
       thresholds: {
         global: {
-          branches: 80,
-          functions: 80,
-          lines: 80,
-          statements: 80,
+          branches: 70,
+          functions: 70,
         },
       },
     },

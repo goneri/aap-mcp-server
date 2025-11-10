@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   extractToolsFromApi,
   AAPOperationObject,
-  type AAPMcpToolDefinition,
+  normalizeBoolean,
+  shouldIncludeOperationForMcp,
 } from "./extract-tools.js";
 import type { OpenAPIV3 } from "openapi-types";
 
@@ -759,5 +760,195 @@ describe("Extract Tools - x-ai-description functionality", () => {
       severity: "ERR",
       msg: "no `x-ai-description` field",
     });
+  });
+});
+
+describe("normalizeBoolean", () => {
+  it("should return boolean values as-is", () => {
+    expect(normalizeBoolean(true)).toBe(true);
+    expect(normalizeBoolean(false)).toBe(false);
+  });
+
+  it("should normalize string 'true' variants to true", () => {
+    expect(normalizeBoolean("true")).toBe(true);
+    expect(normalizeBoolean("TRUE")).toBe(true);
+    expect(normalizeBoolean(" true ")).toBe(true);
+    expect(normalizeBoolean("1")).toBe(true);
+    expect(normalizeBoolean("yes")).toBe(true);
+    expect(normalizeBoolean("YES")).toBe(true);
+    expect(normalizeBoolean("on")).toBe(true);
+    expect(normalizeBoolean("ON")).toBe(true);
+  });
+
+  it("should normalize string 'false' variants to false", () => {
+    expect(normalizeBoolean("false")).toBe(false);
+    expect(normalizeBoolean("FALSE")).toBe(false);
+    expect(normalizeBoolean(" false ")).toBe(false);
+    expect(normalizeBoolean("0")).toBe(false);
+    expect(normalizeBoolean("no")).toBe(false);
+    expect(normalizeBoolean("NO")).toBe(false);
+    expect(normalizeBoolean("off")).toBe(false);
+    expect(normalizeBoolean("OFF")).toBe(false);
+  });
+
+  it("should return undefined for unrecognized string values", () => {
+    expect(normalizeBoolean("maybe")).toBeUndefined();
+    expect(normalizeBoolean("2")).toBeUndefined();
+    expect(normalizeBoolean("invalid")).toBeUndefined();
+    expect(normalizeBoolean("")).toBeUndefined();
+    expect(normalizeBoolean("   ")).toBeUndefined();
+  });
+
+  it("should return undefined for non-boolean, non-string values", () => {
+    expect(normalizeBoolean(null)).toBeUndefined();
+    expect(normalizeBoolean(undefined)).toBeUndefined();
+    expect(normalizeBoolean(123)).toBeUndefined();
+    expect(normalizeBoolean({})).toBeUndefined();
+    expect(normalizeBoolean([])).toBeUndefined();
+  });
+});
+
+describe("shouldIncludeOperationForMcp", () => {
+  const createMockPathItem = (xMcp?: any): OpenAPIV3.PathItemObject =>
+    ({
+      "x-mcp": xMcp,
+    }) as any;
+
+  const createMockOperation = (xMcp?: any): AAPOperationObject => {
+    const op = new AAPOperationObject({
+      operationId: "test_op",
+      responses: { "200": { description: "OK" } },
+    });
+    if (xMcp !== undefined) {
+      (op as any)["x-mcp"] = xMcp;
+    }
+    return op;
+  };
+
+  const createMockApi = (xMcp?: any): OpenAPIV3.Document =>
+    ({
+      openapi: "3.0.0",
+      info: { title: "Test", version: "1.0.0" },
+      paths: {},
+      "x-mcp": xMcp,
+    }) as any;
+
+  it("should use operation-level x-mcp when present", () => {
+    const api = createMockApi();
+    const pathItem = createMockPathItem();
+    const operation = createMockOperation(true);
+
+    expect(shouldIncludeOperationForMcp(api, pathItem, operation)).toBe(true);
+
+    const operationFalse = createMockOperation(false);
+    expect(shouldIncludeOperationForMcp(api, pathItem, operationFalse)).toBe(
+      false,
+    );
+  });
+
+  it("should fall back to path-level x-mcp when operation-level is undefined", () => {
+    const api = createMockApi();
+    const pathItem = createMockPathItem(true);
+    const operation = createMockOperation();
+
+    expect(shouldIncludeOperationForMcp(api, pathItem, operation)).toBe(true);
+
+    const pathItemFalse = createMockPathItem(false);
+    expect(shouldIncludeOperationForMcp(api, pathItemFalse, operation)).toBe(
+      false,
+    );
+  });
+
+  it("should fall back to root-level x-mcp when path and operation are undefined", () => {
+    const api = createMockApi(true);
+    const pathItem = createMockPathItem();
+    const operation = createMockOperation();
+
+    expect(shouldIncludeOperationForMcp(api, pathItem, operation)).toBe(true);
+
+    const apiFalse = createMockApi(false);
+    expect(shouldIncludeOperationForMcp(apiFalse, pathItem, operation)).toBe(
+      false,
+    );
+  });
+
+  it("should use default value when all levels are undefined", () => {
+    const api = createMockApi();
+    const pathItem = createMockPathItem();
+    const operation = createMockOperation();
+
+    // Default is true
+    expect(shouldIncludeOperationForMcp(api, pathItem, operation)).toBe(true);
+
+    // Explicit default false
+    expect(shouldIncludeOperationForMcp(api, pathItem, operation, false)).toBe(
+      false,
+    );
+  });
+
+  it("should handle string values using normalizeBoolean", () => {
+    const api = createMockApi();
+    const pathItem = createMockPathItem();
+    const operation = createMockOperation("true");
+
+    expect(shouldIncludeOperationForMcp(api, pathItem, operation)).toBe(true);
+
+    const operationStringFalse = createMockOperation("false");
+    expect(
+      shouldIncludeOperationForMcp(api, pathItem, operationStringFalse),
+    ).toBe(false);
+  });
+
+  it("should warn and fall back for invalid operation-level values", () => {
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const api = createMockApi();
+    const pathItem = createMockPathItem(true);
+    const operation = createMockOperation("invalid");
+
+    expect(shouldIncludeOperationForMcp(api, pathItem, operation)).toBe(true);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Invalid x-mcp value on operation"),
+      expect.anything(),
+      expect.anything(),
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it("should warn and fall back for invalid path-level values", () => {
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const api = createMockApi(false);
+    const pathItem = createMockPathItem("invalid");
+    const operation = createMockOperation();
+
+    expect(shouldIncludeOperationForMcp(api, pathItem, operation)).toBe(false);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Invalid x-mcp value on path item"),
+      expect.anything(),
+      expect.anything(),
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it("should warn and use default for invalid root-level values", () => {
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const api = createMockApi("invalid");
+    const pathItem = createMockPathItem();
+    const operation = createMockOperation();
+
+    expect(shouldIncludeOperationForMcp(api, pathItem, operation, false)).toBe(
+      false,
+    );
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Invalid x-mcp value at API root"),
+      expect.anything(),
+      expect.anything(),
+    );
+
+    consoleSpy.mockRestore();
   });
 });
