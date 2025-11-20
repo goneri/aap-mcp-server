@@ -427,228 +427,219 @@ const getAllLogEntries = async (): Promise<
   }
 };
 
-const server = new Server(
-  {
-    name: "aap",
-    version: "0.1.0",
-  },
-  {
-    capabilities: {
-      tools: {},
+// Factory function to create a new Server instance with request handlers
+// Each transport gets its own Server instance to prevent session routing conflicts
+const createMcpServer = (): Server => {
+  const server = new Server(
+    {
+      name: "aap",
+      version: "0.1.0",
     },
-  },
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
-  // Get the session ID from the transport context
-  const sessionId = extra?.sessionId;
-  const _startTime = Date.now();
-
-  // Get category override from transport if available
-  const transport = sessionId ? transports[sessionId] : null;
-  const categoryOverride = transport
-    ? (transport as any).categoryOverride
-    : undefined;
-
-  // Determine user category based on category override
-  const category = getUserCategory(categoryOverride);
-
-  // Filter tools based on category
-  const filteredTools = filterToolsByCategory(allTools, category);
-
-  // Determine category type by comparing with known categories
-  let categoryType = "unknown";
-  for (const [name, tools] of Object.entries(allCategories)) {
-    if (category === tools) {
-      categoryType = name;
-      break;
-    }
-  }
-
-  const overrideInfo = categoryOverride
-    ? ` (override: ${categoryOverride})`
-    : "";
-  console.log(
-    `${getTimestamp()} Returning ${filteredTools.length} tools for ${categoryType} category${overrideInfo}`,
+    {
+      capabilities: {
+        tools: {},
+      },
+    },
   );
 
-  return {
-    tools: filteredTools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: tool.inputSchema,
-    })),
-  };
-});
+  server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
+    // Get the session ID from the transport context
+    const sessionId = extra?.sessionId;
 
-server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-  const { name, arguments: args = {} } = request.params;
-  const _startTime = Date.now();
+    // Get category override from transport if available
+    const transport = sessionId ? transports[sessionId] : null;
+    const categoryOverride = transport
+      ? (transport as any).categoryOverride
+      : undefined;
 
-  // Generate correlation ID for this request
-  const correlationId = randomUUID().substring(0, 8);
+    // Determine user category based on category override
+    const category = getUserCategory(categoryOverride);
 
-  // Find the matching tool
-  const tool = allTools.find((t) => t.name === name);
-  if (!tool) {
-    throw new Error(`Unknown tool: ${name}`);
-  }
-
-  // Get category for this tool
-  const toolCategory = getCategoryForTool(tool.name);
-
-  // Get the session ID from the transport context
-  const sessionId = extra?.sessionId;
-
-  // Get user-agent from transport (if available)
-  let userAgent = "unknown";
-  if (sessionId && transports[sessionId]) {
-    const transport = transports[sessionId] as any;
-    userAgent = transport.userAgent || "unknown";
-  }
-
-  // Get the Bearer token for this session
-  const bearerToken = getBearerTokenForSession(sessionId);
-
-  // Execute the tool by making HTTP request
-  let result: any;
-  let response: Response | undefined;
-  let fullUrl: string = `${CONFIG.BASE_URL}${tool.pathTemplate}`;
-  let requestOptions: RequestInit | undefined;
-
-  try {
-    // Build URL from path template and parameters
-    let url = tool.pathTemplate;
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${bearerToken}`,
-      Accept: "application/json",
-    };
-
-    for (const param of tool.parameters || []) {
-      if (param.in === "path" && args[param.name]) {
-        url = url.replace(`{${param.name}}`, String(args[param.name]));
-      }
-    }
-
-    // Add query parameters
-    const queryParams = new URLSearchParams();
-    for (const param of tool.parameters || []) {
-      if (param.in === "query" && args[param.name] !== undefined) {
-        queryParams.append(param.name, String(args[param.name]));
-      }
-    }
-    if (queryParams.toString()) {
-      url += "?" + queryParams.toString();
-    }
-
-    // Prepare request options
-    requestOptions = {
-      method: tool.method.toUpperCase(),
-      headers,
-    };
-
-    // Add request body for POST, PUT, PATCH
-    if (
-      ["POST", "PUT", "PATCH"].includes(tool.method.toUpperCase()) &&
-      args.requestBody
-    ) {
-      headers["Content-Type"] = "application/json";
-      requestOptions.body = JSON.stringify(args.requestBody);
-    }
-
-    // Make HTTP request
-    fullUrl = `${CONFIG.BASE_URL}${url}`;
-    console.log(
-      `${getTimestamp()} [req:${correlationId}|category:${toolCategory}] ${tool.name} → ${tool.method.toUpperCase()} ${fullUrl}`,
-    );
-    response = await fetch(fullUrl, requestOptions);
-
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      result = await response.json();
-    } else {
-      result = await response.text();
-    }
-
-    // Log response with timing
-    const duration = ((Date.now() - _startTime) / 1000).toFixed(2);
-    console.log(
-      `${getTimestamp()} [req:${correlationId}|category:${toolCategory}] ${tool.name} → ${response.status} ${response.statusText} (${duration}s)`,
-    );
-
-    // Log the tool access (only if recording is enabled)
-    if (recordApiQueries && toolLogger) {
-      // Add category information to the tool for metrics
-      const toolWithCategory = {
-        ...tool,
-        category: toolCategory,
-      };
-      await toolLogger.logToolAccess(
-        toolWithCategory,
-        fullUrl,
-        {
-          method: tool.method.toUpperCase(),
-          userAgent: userAgent,
-        },
-        result,
-        response.status,
-        _startTime,
-      );
-    }
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${JSON.stringify(result)}`);
-    }
+    // Filter tools based on category
+    const filteredTools = filterToolsByCategory(allTools, category);
 
     return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+      tools: filteredTools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      })),
     };
-  } catch (error) {
-    // Log the error with timing
-    const duration = ((Date.now() - _startTime) / 1000).toFixed(2);
-    const statusInfo = response
-      ? `${response.status} ${response.statusText}`
-      : "No Response";
-    console.error(
-      `${getTimestamp()} [req:${correlationId}|category:${toolCategory}] ${tool.name} → ${statusInfo} (${duration}s) - ERROR: ${error instanceof Error ? error.message : String(error)}`,
-    );
+  });
 
-    // Log the failed tool access (only if recording is enabled)
-    if (recordApiQueries && toolLogger) {
-      // Add category information to the tool for metrics
-      const toolWithCategory = {
-        ...tool,
-        category: toolCategory,
-      };
-      await toolLogger.logToolAccess(
-        toolWithCategory,
-        fullUrl,
-        {
-          method: tool.method.toUpperCase(),
-          userAgent: userAgent,
-        },
-        { error: error instanceof Error ? error.message : String(error) },
-        response?.status || 0,
-        _startTime,
-      );
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+    const { name, arguments: args = {} } = request.params;
+    const _startTime = Date.now();
+
+    // Generate correlation ID for this request
+    const correlationId = randomUUID().substring(0, 8);
+
+    // Find the matching tool
+    const tool = allTools.find((t) => t.name === name);
+    if (!tool) {
+      throw new Error(`Unknown tool: ${name}`);
     }
 
-    throw new Error(
-      `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-});
+    // Get category for this tool
+    const toolCategory = getCategoryForTool(tool.name);
+
+    // Get the session ID from the transport context
+    const sessionId = extra?.sessionId;
+
+    // Get user-agent from transport (if available)
+    let userAgent = "unknown";
+    if (sessionId && transports[sessionId]) {
+      const transport = transports[sessionId] as any;
+      userAgent = transport.userAgent || "unknown";
+    }
+
+    // Get the Bearer token for this session
+    const bearerToken = getBearerTokenForSession(sessionId);
+
+    // Execute the tool by making HTTP request
+    let result: any;
+    let response: Response | undefined;
+    let fullUrl: string = `${CONFIG.BASE_URL}${tool.pathTemplate}`;
+    let requestOptions: RequestInit | undefined;
+
+    try {
+      // Build URL from path template and parameters
+      let url = tool.pathTemplate;
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${bearerToken}`,
+        Accept: "application/json",
+      };
+
+      for (const param of tool.parameters || []) {
+        if (param.in === "path" && args[param.name]) {
+          url = url.replace(`{${param.name}}`, String(args[param.name]));
+        }
+      }
+
+      // Add query parameters
+      const queryParams = new URLSearchParams();
+      for (const param of tool.parameters || []) {
+        if (param.in === "query" && args[param.name] !== undefined) {
+          queryParams.append(param.name, String(args[param.name]));
+        }
+      }
+      if (queryParams.toString()) {
+        url += "?" + queryParams.toString();
+      }
+
+      // Prepare request options
+      requestOptions = {
+        method: tool.method.toUpperCase(),
+        headers,
+      };
+
+      // Add request body for POST, PUT, PATCH
+      if (
+        ["POST", "PUT", "PATCH"].includes(tool.method.toUpperCase()) &&
+        args.requestBody
+      ) {
+        headers["Content-Type"] = "application/json";
+        requestOptions.body = JSON.stringify(args.requestBody);
+      }
+
+      // Make HTTP request
+      fullUrl = `${CONFIG.BASE_URL}${url}`;
+      console.log(
+        `${getTimestamp()} [req:${correlationId}|category:${toolCategory}] ${tool.name} → ${tool.method.toUpperCase()} ${fullUrl}`,
+      );
+      response = await fetch(fullUrl, requestOptions);
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        result = await response.json();
+      } else {
+        result = await response.text();
+      }
+
+      // Log response with timing
+      const duration = ((Date.now() - _startTime) / 1000).toFixed(2);
+      console.log(
+        `${getTimestamp()} [req:${correlationId}|category:${toolCategory}] ${tool.name} → ${response.status} ${response.statusText} (${duration}s)`,
+      );
+
+      // Log the tool access (only if recording is enabled)
+      if (recordApiQueries && toolLogger) {
+        // Add category information to the tool for metrics
+        const toolWithCategory = {
+          ...tool,
+          category: toolCategory,
+        };
+        await toolLogger.logToolAccess(
+          toolWithCategory,
+          fullUrl,
+          {
+            method: tool.method.toUpperCase(),
+            userAgent: userAgent,
+          },
+          result,
+          response.status,
+          _startTime,
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(result)}`);
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      // Log the error with timing
+      const duration = ((Date.now() - _startTime) / 1000).toFixed(2);
+      const statusInfo = response
+        ? `${response.status} ${response.statusText}`
+        : "No Response";
+      console.error(
+        `${getTimestamp()} [req:${correlationId}|category:${toolCategory}] ${tool.name} → ${statusInfo} (${duration}s) - ERROR: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      // Log the failed tool access (only if recording is enabled)
+      if (recordApiQueries && toolLogger) {
+        // Add category information to the tool for metrics
+        const toolWithCategory = {
+          ...tool,
+          category: toolCategory,
+        };
+        await toolLogger.logToolAccess(
+          toolWithCategory,
+          fullUrl,
+          {
+            method: tool.method.toUpperCase(),
+            userAgent: userAgent,
+          },
+          { error: error instanceof Error ? error.message : String(error) },
+          response?.status || 0,
+          _startTime,
+        );
+      }
+
+      throw new Error(
+        `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  });
+
+  return server;
+};
 
 // Global state management
 const transports: Record<string, StreamableHTTPServerTransport> = {};
+const servers: Record<string, Server> = {};
 const sessionData: SessionData = {};
 
 const app = express();
+
 app.use(express.json());
 
 // Allow CORS for all domains, expose the Mcp-Session-Id header
@@ -685,34 +676,40 @@ const mcpPostHandler = async (
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: async (sessionId: string) => {
-          console.log(
-            `${getTimestamp()} Session initialized${categoryOverride ? ` with category override: ${categoryOverride}` : ""}`,
-          );
-          transports[sessionId] = transport;
+          try {
+            transports[sessionId] = transport;
 
-          // Store category override and user-agent in transport for later access
-          (transport as any).categoryOverride = categoryOverride;
-          (transport as any).userAgent = req.headers["user-agent"] || "unknown";
+            // Store category override and user-agent in transport for later access
+            (transport as any).categoryOverride = categoryOverride;
+            (transport as any).userAgent =
+              req.headers["user-agent"] || "unknown";
 
-          // Extract and validate the bearer token
-          const token = extractBearerToken(authHeader);
-          if (token) {
-            try {
-              // Validate token and get user permissions
-              const permissions = await validateTokenAndGetPermissions(token);
+            // Extract and validate the bearer token
+            const token = extractBearerToken(authHeader);
+            if (token) {
+              try {
+                // Validate token and get user permissions
+                const permissions = await validateTokenAndGetPermissions(token);
 
-              // Store both token and permissions in session data
-              storeSessionData(sessionId, token, permissions);
-            } catch (error) {
-              console.error(
-                `${getTimestamp()} Failed to validate token:`,
-                error,
-              );
-              // Token validation failed, we cannot create the session without valid token
-              throw error;
+                // Store both token and permissions in session data
+                storeSessionData(sessionId, token, permissions);
+              } catch (error) {
+                console.error(
+                  `${getTimestamp()} Failed to validate token:`,
+                  error,
+                );
+                // Token validation failed, we cannot create the session without valid token
+                throw error;
+              }
+            } else {
+              console.warn(`${getTimestamp()} No bearer token provided`);
             }
-          } else {
-            console.warn(`${getTimestamp()} No bearer token provided`);
+          } catch (error) {
+            console.error(
+              `${getTimestamp()} Session init callback failed:`,
+              error,
+            );
+            throw error;
           }
         },
       });
@@ -722,9 +719,14 @@ const mcpPostHandler = async (
         const sid = transport.sessionId;
         if (sid && transports[sid]) {
           console.log(
-            `${getTimestamp()} Transport closed, removing from transports map`,
+            `${getTimestamp()} Transport closed, removing from transports and servers map`,
           );
           delete transports[sid];
+          // Clean up server instance
+          if (servers[sid]) {
+            delete servers[sid];
+            console.log(`${getTimestamp()} Removed server instance`);
+          }
           // Clean up session data
           if (sessionData[sid]) {
             delete sessionData[sid];
@@ -733,9 +735,28 @@ const mcpPostHandler = async (
         }
       };
 
+      // Create a new Server instance for this transport
+      // Each transport needs its own Server to prevent session routing conflicts
+      const server = createMcpServer();
+
       // Connect the transport to the MCP server BEFORE handling the request
-      await server.connect(transport);
-      await transport.handleRequest(req, res, req.body);
+      try {
+        await server.connect(transport);
+
+        // Store the server instance for this session
+        const sid = transport.sessionId;
+        if (sid) {
+          servers[sid] = server;
+        }
+
+        await transport.handleRequest(req, res, req.body);
+      } catch (error) {
+        console.error(
+          `${getTimestamp()} Failed during server.connect() or handleRequest():`,
+          error,
+        );
+        throw error;
+      }
       return;
     } else {
       // Invalid request - no session ID or not initialization request
@@ -760,6 +781,7 @@ const mcpPostHandler = async (
         error: {
           code: -32603,
           message: "Internal server error",
+          data: error instanceof Error ? error.message : String(error),
         },
         id: null,
       });
@@ -1574,6 +1596,10 @@ process.on("SIGINT", async () => {
       console.log(`${getTimestamp()} Closing transport during shutdown`);
       await transports[sessionId].close();
       delete transports[sessionId];
+      // Clean up server instance
+      if (servers[sessionId]) {
+        delete servers[sessionId];
+      }
       // Clean up session data
       if (sessionData[sessionId]) {
         delete sessionData[sessionId];
