@@ -63,7 +63,6 @@ const allCategories: Record<string, Category> = localConfig.categories;
 const CONFIG = {
   BASE_URL: process.env.BASE_URL || localConfig.base_url || "https://localhost",
   MCP_PORT: process.env.MCP_PORT ? parseInt(process.env.MCP_PORT, 10) : 3000,
-  FALLBACK_BEARER_TOKEN: process.env.BEARER_TOKEN_OAUTH2_AUTHENTICATION,
 } as const;
 
 // Log entries size limit for /logs endpoint
@@ -123,8 +122,9 @@ if (ignoreCertificateErrors) {
 interface SessionData {
   [sessionId: string]: {
     token: string;
-    is_superuser: boolean;
-    is_platform_auditor: boolean;
+    userAgent: string;
+    category: string;
+    transport: StreamableHTTPServerTransport;
   };
 }
 
@@ -137,32 +137,8 @@ const extractBearerToken = (
     : undefined;
 };
 
-const getBearerTokenForSession = (sessionId: string | undefined): string => {
-  let bearerToken = CONFIG.FALLBACK_BEARER_TOKEN;
-  if (sessionId && sessionData[sessionId]) {
-    bearerToken = sessionData[sessionId].token;
-    console.log(
-      `${getTimestamp()} Using session-specific Bearer token for session: ${sessionId}`,
-    );
-  } else {
-    console.log(
-      `${getTimestamp()} Using fallback Bearer token from environment variable`,
-    );
-  }
-
-  if (!bearerToken) {
-    throw new Error(
-      "No Bearer token available. Please provide an Authorization header or set BEARER_TOKEN_OAUTH2_AUTHENTICATION environment variable.",
-    );
-  }
-
-  return bearerToken;
-};
-
-// Validate authorization token and extract user permissions
-const validateTokenAndGetPermissions = async (
-  bearerToken: string,
-): Promise<{ is_superuser: boolean; is_platform_auditor: boolean }> => {
+// Validate authorization token
+const validateToken = async (bearerToken: string): Promise<void> => {
   try {
     const response = await fetch(`${CONFIG.BASE_URL}/api/gateway/v1/me/`, {
       headers: {
@@ -177,21 +153,7 @@ const validateTokenAndGetPermissions = async (
       );
     }
 
-    const data = (await response.json()) as any;
-
-    if (
-      !data.results ||
-      !Array.isArray(data.results) ||
-      data.results.length === 0
-    ) {
-      throw new Error("Invalid response format from /api/gateway/v1/me/");
-    }
-
-    const userInfo = data.results[0] as any;
-    return {
-      is_superuser: userInfo.is_superuser || false,
-      is_platform_auditor: userInfo.is_platform_auditor || false,
-    };
+    // Token is valid, no need to extract user data
   } catch (error) {
     console.error(`${getTimestamp()} Token validation failed:`, error);
     throw new Error(
@@ -203,35 +165,45 @@ const validateTokenAndGetPermissions = async (
 const storeSessionData = (
   sessionId: string,
   token: string,
-  permissions: { is_superuser: boolean; is_platform_auditor: boolean },
+  userAgent: string,
+  category: string,
+  transport: StreamableHTTPServerTransport,
 ): void => {
   sessionData[sessionId] = {
     token,
-    is_superuser: permissions.is_superuser,
-    is_platform_auditor: permissions.is_platform_auditor,
+    userAgent,
+    category,
+    transport,
   };
   console.log(
-    `${getTimestamp()} Stored session data for ${sessionId}: superuser=${permissions.is_superuser}, auditor=${permissions.is_platform_auditor}`,
+    `${getTimestamp()} Stored session data for ${sessionId}: userAgent=${userAgent}, category=${category}`,
   );
 };
 
 // Determine user category based on category name
 const getUserCategory = (category?: string): Category => {
-  // category is the only way to set the category
+  // If category is provided, try to find it
   if (category) {
     const categoryName = category.toLowerCase();
     if (allCategories[categoryName]) {
       return allCategories[categoryName];
     } else {
       console.warn(
-        `${getTimestamp()} Unknown category: ${category}, returning empty category`,
+        `${getTimestamp()} Unknown category: ${category}, defaulting to 'all' category`,
       );
-      return [];
     }
   }
 
-  // If no category is provided, return empty category (no tools available)
-  return [];
+  // Default to "all" category if no category provided or category not found
+  if (allCategories["all"]) {
+    return allCategories["all"];
+  }
+
+  // If "all" category doesn't exist, return all available tools
+  console.warn(
+    `${getTimestamp()} No 'all' category found, returning all tools`,
+  );
+  return allTools.map((tool) => tool.name);
 };
 
 // Filter tools based on category
@@ -353,13 +325,13 @@ const createMcpServer = (): Server => {
     // Get the session ID from the transport context
     const sessionId = extra?.sessionId;
 
-    // Get category override from transport if available
-    const transport = sessionId ? transports[sessionId] : null;
-    const categoryOverride = transport
-      ? (transport as any).categoryOverride
-      : undefined;
+    // Get category from session data
+    let categoryOverride: string | undefined;
+    if (sessionId && sessionData[sessionId]) {
+      categoryOverride = sessionData[sessionId].category;
+    }
 
-    // Determine user category based on category override
+    // Determine user category based on category from session
     const category = getUserCategory(categoryOverride);
 
     // Filter tools based on category
@@ -377,6 +349,11 @@ const createMcpServer = (): Server => {
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const { name, arguments: args = {} } = request.params;
     const _startTime = Date.now();
+    const sessionId = extra?.sessionId;
+
+    if (!sessionId || !sessionData[sessionId]) {
+      throw new Error("Invalid or missing session ID");
+    }
 
     // Generate correlation ID for this request
     const correlationId = randomUUID().substring(0, 8);
@@ -390,18 +367,14 @@ const createMcpServer = (): Server => {
     // Get category for this tool
     const toolCategory = getCategoryForTool(tool.name);
 
-    // Get the session ID from the transport context
-    const sessionId = extra?.sessionId;
-
-    // Get user-agent from transport (if available)
+    // Get user-agent from session data (if available)
     let userAgent = "unknown";
-    if (sessionId && transports[sessionId]) {
-      const transport = transports[sessionId] as any;
-      userAgent = transport.userAgent || "unknown";
+    if (sessionId && sessionData[sessionId]) {
+      userAgent = sessionData[sessionId].userAgent;
     }
 
     // Get the Bearer token for this session
-    const bearerToken = getBearerTokenForSession(sessionId);
+    const bearerToken = sessionData[sessionId].token;
 
     // Execute the tool by making HTTP request
     let result: any;
@@ -541,7 +514,6 @@ const createMcpServer = (): Server => {
 };
 
 // Global state management
-const transports: Record<string, StreamableHTTPServerTransport> = {};
 const servers: Record<string, Server> = {};
 const sessionData: SessionData = {};
 
@@ -575,31 +547,32 @@ const mcpPostHandler = async (
   try {
     let transport: StreamableHTTPServerTransport;
 
-    if (sessionId && transports[sessionId]) {
+    if (sessionId && sessionData[sessionId]) {
       // Reuse existing transport
-      transport = transports[sessionId];
+      transport = sessionData[sessionId].transport;
     } else if (!sessionId && isInitializeRequest(req.body)) {
       // New initialization request
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: async (sessionId: string) => {
           try {
-            transports[sessionId] = transport;
-
-            // Store category override and user-agent in transport for later access
-            (transport as any).categoryOverride = categoryOverride;
-            (transport as any).userAgent =
-              req.headers["user-agent"] || "unknown";
-
             // Extract and validate the bearer token
             const token = extractBearerToken(authHeader);
             if (token) {
               try {
-                // Validate token and get user permissions
-                const permissions = await validateTokenAndGetPermissions(token);
+                // Validate token (no permissions extraction)
+                await validateToken(token);
 
-                // Store both token and permissions in session data
-                storeSessionData(sessionId, token, permissions);
+                // Store session data with userAgent, category, and transport
+                const userAgent = req.headers["user-agent"] || "unknown";
+                const category = categoryOverride || "all";
+                storeSessionData(
+                  sessionId,
+                  token,
+                  userAgent,
+                  category,
+                  transport,
+                );
               } catch (error) {
                 console.error(
                   `${getTimestamp()} Failed to validate token:`,
@@ -624,21 +597,18 @@ const mcpPostHandler = async (
       // Set up onclose handler to clean up transport when closed
       transport.onclose = () => {
         const sid = transport.sessionId;
-        if (sid && transports[sid]) {
+        if (sid && sessionData[sid]) {
           console.log(
-            `${getTimestamp()} Transport closed, removing from transports and servers map`,
+            `${getTimestamp()} Transport closed, removing from session data and servers map`,
           );
-          delete transports[sid];
           // Clean up server instance
           if (servers[sid]) {
             delete servers[sid];
             console.log(`${getTimestamp()} Removed server instance`);
           }
-          // Clean up session data
-          if (sessionData[sid]) {
-            delete sessionData[sid];
-            console.log(`${getTimestamp()} Removed session data`);
-          }
+          // Clean up session data (this includes the transport)
+          delete sessionData[sid];
+          console.log(`${getTimestamp()} Removed session data`);
         }
       };
 
@@ -705,7 +675,7 @@ const mcpGetHandler = async (
   const sessionId = req.headers["mcp-session-id"] as string;
   const _authHeader = req.headers["authorization"] as string;
 
-  if (!sessionId || !transports[sessionId]) {
+  if (!sessionId || !sessionData[sessionId]) {
     res.status(400).send("Invalid or missing session ID");
     return;
   }
@@ -721,7 +691,7 @@ const mcpGetHandler = async (
     console.log(`${getTimestamp()} Establishing new SSE stream`);
   }
 
-  const transport = transports[sessionId];
+  const transport = sessionData[sessionId].transport;
   await transport.handleRequest(req, res);
 };
 
@@ -733,7 +703,7 @@ const mcpDeleteHandler = async (
 ) => {
   const sessionId = req.headers["mcp-session-id"] as string;
 
-  if (!sessionId || !transports[sessionId]) {
+  if (!sessionId || !sessionData[sessionId]) {
     res.status(400).send("Invalid or missing session ID");
     return;
   }
@@ -741,7 +711,7 @@ const mcpDeleteHandler = async (
   console.log(`${getTimestamp()} Received session termination request`);
 
   try {
-    const transport = transports[sessionId];
+    const transport = sessionData[sessionId].transport;
     await transport.handleRequest(req, res);
 
     // Clean up session data when session is terminated
@@ -929,20 +899,17 @@ async function main(): Promise<void> {
 process.on("SIGINT", async () => {
   console.log(`${getTimestamp()} Shutting down server...`);
 
-  // Close all active transports
-  for (const sessionId in transports) {
+  // Close all active sessions and transports
+  for (const sessionId in sessionData) {
     try {
       console.log(`${getTimestamp()} Closing transport during shutdown`);
-      await transports[sessionId].close();
-      delete transports[sessionId];
+      await sessionData[sessionId].transport.close();
       // Clean up server instance
       if (servers[sessionId]) {
         delete servers[sessionId];
       }
-      // Clean up session data
-      if (sessionData[sessionId]) {
-        delete sessionData[sessionId];
-      }
+      // Clean up session data (includes transport)
+      delete sessionData[sessionId];
     } catch (error) {
       console.error(`${getTimestamp()} Error closing transport:`, error);
     }
