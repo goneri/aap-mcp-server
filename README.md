@@ -150,13 +150,7 @@ cp aap-mcp.sample.yaml aap-mcp.yaml
 # Edit aap-mcp.yaml with your AAP instance details
 ```
 
-2. **Set your authentication token**:
-
-```bash
-export BEARER_TOKEN_OAUTH2_AUTHENTICATION=your_aap_token_here
-```
-
-3. **Start the service**:
+2. **Start the service**:
 
 ```bash
 # Development mode
